@@ -178,17 +178,26 @@ export const createProductFormData = (productData) => {
     }
 
     if (Array.isArray(images)) {
-        const existingImages = [];
-        images.forEach((img) => {
-            if (img instanceof File) {
-                formData.append("images", img);
-            } else {
-                existingImages.push(img);
+        // Gallery entries come from ProductForm as either a plain URL
+        // (kept image) or a { id, url, file } wrapper holding a freshly
+        // picked File — a bare `img instanceof File` check here always
+        // failed, so no new gallery image ever actually got uploaded.
+        // "imagesLayout" carries the admin's final order (URL string per
+        // kept image, null placeholder per new file); the files are
+        // appended in that same left-to-right order so the backend can
+        // slot each upload into the right spot after drag-reordering.
+        const imagesLayout = images.map((img) => {
+            const file = img instanceof File ? img : img?.file;
+
+            if (file instanceof File) {
+                formData.append("images", file);
+                return null;
             }
+
+            return typeof img === "string" ? img : img?.url || null;
         });
-        if (existingImages.length > 0) {
-            formData.append("existingImages", JSON.stringify(existingImages));
-        }
+
+        formData.append("imagesLayout", JSON.stringify(imagesLayout));
     }
 
     return formData;
