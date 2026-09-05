@@ -506,22 +506,6 @@ function normalizeAttributeItem(item) {
   };
 }
 
-const handleToggleStatus = async () => {
-  const newStatus = form.status === "active" ? "inactive" : "active";
-
-  try {
-    await axios.patch(
-      `${API_URL}products/${productId}/status`,
-      {},
-      { headers: getAuthHeaders() }
-    );
-    handleChange("status", newStatus); // local state bhi update karein UI ke liए
-    showToast("success", `Product marked as ${newStatus}`);
-  } catch (err) {
-    showToast("error", "Failed to update status");
-  }
-};
-
 function normalizeVariant(variant) {
   let attributes = [];
 

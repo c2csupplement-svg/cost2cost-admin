@@ -182,7 +182,7 @@ export default function ProductsPage() {
     setUpdatingStatusId(product.id);
 
     const response =
-      await updateProductStatus(product.id);
+      await updateProductStatus(product.id, newStatus);
 
     if (!response?.success) {
       throw new Error(

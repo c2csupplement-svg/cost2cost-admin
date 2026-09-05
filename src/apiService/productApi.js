@@ -381,23 +381,31 @@ export const searchProduct = async (product) => {
     }
 }
 export const updateProductStatus = async (
-  productId
+  productId,
+  status
 ) => {
   const statusUrl =
     `${API_URL}${productId}/status`;
 
-  console.log(
-    "Product status URL:",
-    statusUrl
-  );
+  try {
+    const response = await axios.patch(
+      statusUrl,
+      { status },
+      {
+        headers: getAuthHeaders(),
+      }
+    );
 
-  const response = await axios.patch(
-    statusUrl,
-    {},
-    {
-      headers: getAuthHeaders(),
-    }
-  );
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Update product status failed:",
+      error
+    );
 
-  return response.data;
+    return getErrorResponse(
+      error,
+      "Failed to update product status"
+    );
+  }
 };
