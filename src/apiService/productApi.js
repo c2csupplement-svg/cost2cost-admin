@@ -135,7 +135,7 @@ export const createProductFormData = (productData) => {
 
     const jsonArrayFields = {
         faqs, howToUse, keyBenefits, safetyInformation,
-        whatToAvoid, whoShouldUse, whychooseus, tags, variants,
+        whatToAvoid, whoShouldUse, whychooseus, tags,
     };
 
     Object.entries(jsonArrayFields).forEach(([key, value]) => {
@@ -143,6 +143,33 @@ export const createProductFormData = (productData) => {
             formData.append(key, JSON.stringify(value ?? []));
         }
     });
+
+    if (variants !== undefined) {
+        // Each variant may carry a freshly-picked image File (imageFile).
+        // Strip it out before JSON-stringifying the variants array (a File
+        // serializes to "{}"), and append it separately as a real upload —
+        // "variantImageIndexes" tells the backend which variant (by
+        // position in this array) each uploaded file belongs to, since
+        // only some variants may have a new image.
+        const variantImageIndexes = [];
+
+        const cleanedVariants = (variants ?? []).map((variant, index) => {
+            const { imageFile, ...rest } = variant || {};
+
+            if (imageFile instanceof File) {
+                formData.append("variantImages", imageFile);
+                variantImageIndexes.push(index);
+            }
+
+            return rest;
+        });
+
+        formData.append("variants", JSON.stringify(cleanedVariants));
+
+        if (variantImageIndexes.length > 0) {
+            formData.append("variantImageIndexes", JSON.stringify(variantImageIndexes));
+        }
+    }
 
     if (featuredimg instanceof File) {
         formData.append("featuredimg", featuredimg);

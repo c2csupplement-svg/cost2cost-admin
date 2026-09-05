@@ -140,6 +140,8 @@ export default function ProductsPage() {
       setCount(Number(data.count) || productList.length);
       setTotal(Number(data.total) || 0);
       setTotalPages(Math.max(Number(data.totalPages) || 1, 1));
+
+      return productList;
     } catch (err) {
       console.error("Failed to fetch products:", err);
 
@@ -259,8 +261,19 @@ export default function ProductsPage() {
     setFormOpen(true);
   }
 
-  function handleEditClick(product) {
-    setEditingProduct(product);
+  async function handleEditClick(product) {
+    // Refresh from the server before opening — the in-browser list can be
+    // stale (e.g. a variant added directly via the API/DB instead of
+    // through this UI) and would otherwise silently shadow real data in
+    // the edit form. Fetched first (rather than after opening) so it
+    // can't clobber edits the user has already started making.
+    const freshList = await fetchProducts();
+
+    const fresh = Array.isArray(freshList)
+      ? freshList.find((item) => item.id === product.id)
+      : null;
+
+    setEditingProduct(fresh || product);
     setFormOpen(true);
   }
 
