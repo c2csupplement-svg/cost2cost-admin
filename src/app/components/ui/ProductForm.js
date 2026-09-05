@@ -1488,6 +1488,10 @@ function buildCategoryPath(categories, categoryId) {
     setSchemaCopied,
   ] = useState(false);
 
+  // Scratch text for the "paste multiple points at once" boxes on the
+  // Details step — keyed by field name (keyBenefits, howToUse, ...).
+  const [bulkDetailInputs, setBulkDetailInputs] = useState({});
+
   useEffect(() => {
     if (!open) {
       return;
@@ -1533,6 +1537,8 @@ function buildCategoryPath(categories, categoryId) {
     setErrors({
       variants: [],
     });
+
+    setBulkDetailInputs({});
   }, [
     product,
     categories,
@@ -1989,6 +1995,29 @@ const handleGalleryDragEnd = ({ active, over }) => {
     }));
   }
 
+  // Splits a pasted/typed multi-line block into individual points so
+  // users don't have to click "Add" once per line.
+  function addBulkArrayItems(field, text) {
+    const lines = (text || "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (!lines.length) {
+      return;
+    }
+
+    setForm((previous) => ({
+      ...previous,
+      [field]: [
+        ...(previous[field] || []).filter(
+          (item) => (item ?? "").trim() !== ""
+        ),
+        ...lines,
+      ],
+    }));
+  }
+
   function removeArrayItem(
     field,
     index
@@ -2250,16 +2279,23 @@ function handleGalleryImages(event) {
     return true;
   });
 
-const galleryImages = form.images.map((image) => {
-  return image.file || image.url;
-});
+  if (!validFiles.length) {
+    alert("Please select valid images (JPG, PNG, WEBP) under 5MB.");
+    event.target.value = "";
+    return;
+  }
 
+  const newImages = validFiles.map((file) => ({
+    id: crypto.randomUUID(),
+    url: null,
+    file,
+  }));
 
   setForm((previous) => ({
     ...previous,
     images: [
       ...(previous.images || []),
-      ...galleryImages,
+      ...newImages,
     ],
   }));
 
@@ -4330,6 +4366,42 @@ function renderCategorySelection() {
                 </Button>
               </div>
 
+              <div className="mb-4 space-y-2 rounded-lg border border-dashed bg-background p-3">
+                <Textarea
+                  value={bulkDetailInputs[field] || ""}
+                  onChange={(event) =>
+                    setBulkDetailInputs((previous) => ({
+                      ...previous,
+                      [field]: event.target.value,
+                    }))
+                  }
+                  placeholder={`Paste multiple ${label.toLowerCase()} here, one point per line...`}
+                  rows={3}
+                  className="min-h-[70px] resize-y text-xs"
+                />
+
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  disabled={!(bulkDetailInputs[field] || "").trim()}
+                  onClick={() => {
+                    addBulkArrayItems(
+                      field,
+                      bulkDetailInputs[field] || ""
+                    );
+
+                    setBulkDetailInputs((previous) => ({
+                      ...previous,
+                      [field]: "",
+                    }));
+                  }}
+                >
+                  <Plus size={14} className="mr-1.5" />
+                  Add all as points
+                </Button>
+              </div>
+
               <div className="space-y-3">
                 {(form[field] || []).length ===
                 0 ? (
@@ -4345,8 +4417,8 @@ function renderCategorySelection() {
                         key={`${field}-${index}`}
                         className="flex items-start gap-2"
                       >
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-background text-xs font-semibold text-muted-foreground">
-                          {index + 1}
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-background text-muted-foreground">
+                          <span className="h-1.5 w-1.5 rounded-full bg-current" />
                         </div>
 
                         <Textarea
