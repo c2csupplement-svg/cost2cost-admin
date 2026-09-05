@@ -1111,6 +1111,22 @@ function validateVariants(
           "Stock quantity is required and cannot be negative.";
       }
 
+      const selectedAttribute =
+        variant.attributes?.[0];
+
+      if (
+        selectedAttribute?.id &&
+        !String(
+          selectedAttribute.value ?? ""
+        ).trim()
+      ) {
+        // An attribute is picked but its value is blank — the backend
+        // silently drops attributes with an empty value, so without this
+        // check the admin never finds out it didn't save.
+        errors.attributeValue =
+          "Enter a value for the selected attribute, or remove it.";
+      }
+
       return errors;
     }
   );
@@ -3924,11 +3940,13 @@ function renderCategorySelection() {
                             disabled={
                               !selectedAttribute
                             }
-                            className={
-                              attributeUnit
+                            className={`${attributeUnit
                                 ? "pr-16"
                                 : ""
-                            }
+                              } ${variantErrors.attributeValue
+                                ? "border-red-400"
+                                : ""
+                              }`}
                           />
 
                           {attributeUnit && (
@@ -3939,6 +3957,12 @@ function renderCategorySelection() {
                             </span>
                           )}
                         </div>
+
+                        <FieldError
+                          message={
+                            variantErrors.attributeValue
+                          }
+                        />
                       </div>
 
                       <div className="grid gap-2">
