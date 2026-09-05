@@ -344,3 +344,24 @@ export const searchProduct = async (product) => {
         );
     }
 }
+export const updateProductStatus = async (
+  productId
+) => {
+  const statusUrl =
+    `${API_URL}${productId}/status`;
+
+  console.log(
+    "Product status URL:",
+    statusUrl
+  );
+
+  const response = await axios.patch(
+    statusUrl,
+    {},
+    {
+      headers: getAuthHeaders(),
+    }
+  );
+
+  return response.data;
+};

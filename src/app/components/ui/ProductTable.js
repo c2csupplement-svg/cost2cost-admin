@@ -11,6 +11,13 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import {
   Pencil,
@@ -282,9 +289,11 @@ function formatCreatedDate(date) {
 }
 
 export default function ProductTable({
-  products = [],
+ products = [],
   onEdit,
   onDelete,
+  onStatusChange,
+  updatingStatusId = null,
 }) {
   const safeProducts = Array.isArray(products)
     ? products
@@ -671,51 +680,69 @@ export default function ProductTable({
                       )}
                     </div>
                   </TableCell>
+<TableCell className="py-4">
+  <Select
+    value={
+      productStatus === "active"
+        ? "active"
+        : "inactive"
+    }
+    disabled={
+      updatingStatusId === product.id
+    }
+    onValueChange={(newStatus) => {
+      if (newStatus !== productStatus) {
+        onStatusChange?.(
+          product,
+          newStatus
+        );
+      }
+    }}
+  >
+    <SelectTrigger
+      className={`
+        h-9 w-[125px]
+        rounded-full
+        px-3
+        text-xs
+        font-bold
+        ${
+          productStatus === "active"
+            ? "border-emerald-200 bg-emerald-50 text-emerald-700 focus:ring-emerald-200"
+            : "border-red-200 bg-red-50 text-red-700 focus:ring-red-200"
+        }
+      `}
+    >
+      <div className="flex items-center gap-2">
+        <span
+          className={`h-2 w-2 rounded-full ${
+            productStatus === "active"
+              ? "bg-emerald-500"
+              : "bg-red-500"
+          }`}
+        />
 
-                  <TableCell className="py-4">
-                    {productStatus === "active" ? (
-                      <Badge
-                        variant="outline"
-                        className="
-                          inline-flex
-                          items-center
-                          gap-1.5
-                          rounded-full
-                          border-emerald-200
-                          bg-emerald-50
-                          px-2.5
-                          py-1
-                          text-[10px]
-                          font-bold
-                          text-emerald-600
-                        "
-                      >
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        Active
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="
-                          inline-flex
-                          items-center
-                          gap-1.5
-                          rounded-full
-                          border-slate-200
-                          bg-slate-50
-                          px-2.5
-                          py-1
-                          text-[10px]
-                          font-bold
-                          capitalize
-                          text-slate-500
-                        "
-                      >
-                        <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                        {product.status || "Unknown"}
-                      </Badge>
-                    )}
-                  </TableCell>
+        <SelectValue />
+      </div>
+    </SelectTrigger>
+
+    <SelectContent>
+      <SelectItem value="active">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+          Active
+        </div>
+      </SelectItem>
+
+      <SelectItem value="inactive">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-red-500" />
+          Inactive
+        </div>
+      </SelectItem>
+    </SelectContent>
+  </Select>
+</TableCell>
 
                   <TableCell className="pr-5 py-4">
                     <div className="flex items-center justify-end gap-1.5">

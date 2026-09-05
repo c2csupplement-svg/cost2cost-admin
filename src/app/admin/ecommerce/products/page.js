@@ -14,7 +14,7 @@ import {
   Search,
   X,
 } from "lucide-react";
-
+import axios from "axios";
 import ProductTable from "@/app/components/ui/ProductTable";
 import ProductForm from "@/app/components/ui/ProductForm";
 import DeleteConfirmDialog from "@/app/components/ui/DeleteConfirmDialog";
@@ -27,6 +27,7 @@ import {
   updateProduct,
   createProduct,
   searchProduct,
+    updateProductStatus,
 } from "@/apiService/productApi.js";
 
 const SEARCH_DEBOUNCE_MS = 400;
@@ -61,6 +62,8 @@ function toStringOrNull(value) {
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([]);
+  const [updatingStatusId, setUpdatingStatusId] =
+  useState(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -161,6 +164,65 @@ export default function ProductsPage() {
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  const handleProductStatusChange = async (
+  product,
+  newStatus
+) => {
+  if (
+    !product?.id ||
+    product.status === newStatus
+  ) {
+    return;
+  }
+
+  try {
+    setUpdatingStatusId(product.id);
+
+    const response =
+      await updateProductStatus(product.id);
+
+    if (!response?.success) {
+      throw new Error(
+        response?.message ||
+          "Failed to update product status"
+      );
+    }
+
+    const updatedStatus =
+      response?.product?.status ||
+      response?.data?.status ||
+      newStatus;
+
+    setProducts((previousProducts) =>
+      previousProducts.map((item) =>
+        item.id === product.id
+          ? {
+              ...item,
+              status: updatedStatus,
+            }
+          : item
+      )
+    );
+
+    toast.success(
+      `Product marked as ${updatedStatus}`
+    );
+  } catch (error) {
+    console.error(
+      "Product status update error:",
+      error
+    );
+
+    toast.error(
+      error?.response?.data?.message ||
+        error?.message ||
+        "Failed to update product status"
+    );
+  } finally {
+    setUpdatingStatusId(null);
+  }
+};
 
   function handleSearchChange(e) {
     setSearchInput(e.target.value);
@@ -443,14 +505,16 @@ async function handleSave(product) {
         )
       );
 
-      toast.success(
-        "Product updated successfully!"
-      );
+   await fetchProducts();
 
-      setFormOpen(false);
-      setEditingProduct(null);
+toast.success(
+  "Product updated successfully!"
+);
 
-      return;
+setFormOpen(false);
+setEditingProduct(null);
+
+return;
     }
 
     const res = await createProduct(
@@ -657,13 +721,13 @@ async function handleSave(product) {
               </div>
             )}
 
-            <div className="w-full overflow-x-auto">
-              <ProductTable
-                products={products}
-                onEdit={handleEditClick}
-                onDelete={handleDelete}
-              />
-            </div>
+<ProductTable
+  products={products}
+  onEdit={handleEditClick}
+  onDelete={handleDelete}
+  onStatusChange={handleProductStatusChange}
+  updatingStatusId={updatingStatusId}
+/>
           </div>
 
           <div className="flex flex-col gap-4 rounded-lg border bg-white p-4 lg:flex-row lg:items-center lg:justify-between">

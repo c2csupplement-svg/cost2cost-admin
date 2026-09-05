@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+
 
 import {
     Dialog,
@@ -19,13 +19,15 @@ import {
 import { toast } from "sonner";
 
 import {
-    Plus,
-    Pencil,
-    Trash2,
-    FileText,
-    ImagePlus,
-    X,
-    Braces,
+  Plus,
+  Pencil,
+  Trash2,
+  FileText,
+  ImagePlus,
+  X,
+  Braces,
+  Link2,
+  CircleHelp,
 } from "lucide-react";
 
 import DeleteConfirmDialog from "@/app/components/ui/DeleteConfirmDialog";
@@ -78,6 +80,7 @@ const emptyBlog = {
 
 export default function BlogsPage() {
     const [blogs, setBlogs] = useState([]);
+    const contentTextareaRef = useRef(null);
 
     const [loading, setLoading] =
         useState(true);
@@ -960,10 +963,10 @@ export default function BlogsPage() {
         const progress = Math.round((currentStep / totalSteps) * 100);
 
         return (
-            <div className="mb-5 overflow-hidden rounded-2xl border bg-card shadow-sm mx-1 mt-1">
+            <div className="mb-5 overflow-hidden rounded-2xl border bg-card shadow-sm mx-1 mt-1 ">
                 <div className="hidden border-b px-4 py-3 lg:block">
                     <div className="overflow-x-auto pb-1">
-                        <div className="flex min-w-[920px] items-center">
+                        <div className="flex min-w-[920px] items-center my-10px ">
                             {steps.map((step, index) => {
                                 const active = currentStep === step.id;
                                 const completed = currentStep > step.id;
@@ -1090,28 +1093,61 @@ export default function BlogsPage() {
                     />
                 </div>
 
-                <div className="space-y-2">
-                    <Label htmlFor="blog-content">
-                        Content
-                        <span className="ml-1 text-red-500">*</span>
-                    </Label>
+<div className="min-w-0 space-y-3">
+  <Label htmlFor="blog-content">
+    Content
+    <span className="ml-1 text-red-500">*</span>
+  </Label>
 
-                    <Textarea
-                        id="blog-content"
-                        value={blogForm.content}
-                        onChange={(e) =>
-                            handleInputChange("content", e.target.value)
-                        }
-                        placeholder="<p>Full blog HTML content here...</p>"
-                        rows={14}
-                        className="min-h-[280px] resize-y font-mono text-xs leading-6 sm:min-h-[360px] sm:text-sm"
-                    />
+  {/* Content toolbar */}
+  <div className="flex w-full flex-col gap-3 rounded-xl border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-wrap items-center gap-2">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={handleAddLink}
+        className="h-9 shrink-0 gap-2 bg-background"
+      >
+        <Link2 size={15} />
+        Add Link
+      </Button>
 
-                    <p className="text-xs text-muted-foreground">
-                        HTML content is supported.
-                    </p>
-                </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={handleAddFaq}
+        className="h-9 shrink-0 gap-2 bg-background"
+      >
+        <CircleHelp size={15} />
+        Add FAQ
+      </Button>
+    </div>
 
+    <p className="text-xs leading-5 text-muted-foreground sm:text-right">
+      Select text before adding a link.
+    </p>
+  </div>
+
+  {/* Content textarea */}
+  <Textarea
+    ref={contentTextareaRef}
+    id="blog-content"
+    value={blogForm.content}
+    onChange={(e) =>
+      handleInputChange("content", e.target.value)
+    }
+    placeholder="<p>Full blog HTML content here...</p>"
+    rows={14}
+    className="block h-[230px] max-h-[300px] w-full resize-y overflow-scroll whitespace-pre-wrap rounded-xl font-mono text-xs leading-6 sm:min-h-[320px] sm:text-sm"
+  />
+
+  <p className="text-xs leading-5 text-muted-foreground">
+    HTML content is supported. Links and FAQs will be
+    inserted at the cursor position.
+  </p>
+</div>
                 <div className="space-y-2">
                     <Label htmlFor="blog-excerpt">Excerpt</Label>
 
@@ -1455,6 +1491,123 @@ export default function BlogsPage() {
             </div>
         );
     }
+function escapeHtml(value = "") {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function insertIntoContent(html) {
+  const textarea = contentTextareaRef.current;
+  const currentContent = blogForm.content || "";
+
+  if (!textarea) {
+    handleInputChange(
+      "content",
+      `${currentContent}\n${html}`
+    );
+    return;
+  }
+
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+
+  const updatedContent =
+    currentContent.slice(0, start) +
+    html +
+    currentContent.slice(end);
+
+  handleInputChange("content", updatedContent);
+
+  requestAnimationFrame(() => {
+    const newPosition = start + html.length;
+
+    textarea.focus();
+    textarea.setSelectionRange(
+      newPosition,
+      newPosition
+    );
+  });
+}
+
+function handleAddLink() {
+  const selectedText = (() => {
+    const textarea = contentTextareaRef.current;
+
+    if (!textarea) {
+      return "";
+    }
+
+    return (blogForm.content || "").slice(
+      textarea.selectionStart,
+      textarea.selectionEnd
+    );
+  })();
+
+  const linkText = window.prompt(
+    "Enter link text:",
+    selectedText
+  );
+
+  if (!linkText?.trim()) {
+    return;
+  }
+
+  const linkUrl = window.prompt(
+    "Enter URL:",
+    "https://"
+  );
+
+  if (!linkUrl?.trim()) {
+    return;
+  }
+
+  const safeText = escapeHtml(linkText.trim());
+  const safeUrl = escapeHtml(linkUrl.trim());
+
+  insertIntoContent(
+    `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeText}</a>`
+  );
+}
+
+function handleAddFaq() {
+  const question = window.prompt(
+    "Enter FAQ question:"
+  );
+
+  if (!question?.trim()) {
+    return;
+  }
+
+  const answer = window.prompt(
+    "Enter FAQ answer:"
+  );
+
+  if (!answer?.trim()) {
+    return;
+  }
+
+  const safeQuestion = escapeHtml(
+    question.trim()
+  );
+
+  const safeAnswer = escapeHtml(
+    answer.trim()
+  );
+
+  const faqHtml = `
+<div class="blog-faq">
+  <details>
+    <summary>${safeQuestion}</summary>
+    <p>${safeAnswer}</p>
+  </details>
+</div>`;
+
+  insertIntoContent(faqHtml);
+}
 
     async function handleSave() {
         if (!validateCurrentStep()) {

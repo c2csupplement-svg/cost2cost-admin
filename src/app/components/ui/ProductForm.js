@@ -58,6 +58,24 @@ CircleX,
 import { getBrands } from "@/apiService/brandApi";
 import { getCategory } from "@/apiService/categoryApi";
 import { getAttribute } from "@/apiService/attributeApi";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+
+import {
+  arrayMove,
+  SortableContext,
+  rectSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical} from "lucide-react";
 
 const emptyVariant = {
   size: "",
@@ -91,6 +109,7 @@ const emptyForm = {
   isRecent: false,
   isTopRated: false,
   isTrending: false,
+  isCombo: false,
 
   featuredimg: null,
   images: [],
@@ -416,17 +435,31 @@ function normalizeImages(images) {
   }
 
   return images
-    .map((image) => {
+    .map((image, index) => {
       if (typeof image === "string") {
-        return image;
+        return {
+          id: `existing-${index}-${image}`,
+          url: image,
+          file: null,
+        };
       }
 
-      if (image?.url) {
-        return image.url;
+      if (image instanceof File) {
+        return {
+          id: crypto.randomUUID(),
+          url: null,
+          file: image,
+        };
       }
 
-      if (image?.image) {
-        return image.image;
+      if (image?.url || image?.image) {
+        return {
+          id:
+            image.id ||
+            `existing-${index}-${image.url || image.image}`,
+          url: image.url || image.image,
+          file: null,
+        };
       }
 
       return null;
@@ -472,6 +505,22 @@ function normalizeAttributeItem(item) {
     value: String(value ?? ""),
   };
 }
+
+const handleToggleStatus = async () => {
+  const newStatus = form.status === "active" ? "inactive" : "active";
+
+  try {
+    await axios.patch(
+      `${API_URL}products/${productId}/status`,
+      {},
+      { headers: getAuthHeaders() }
+    );
+    handleChange("status", newStatus); // local state bhi update karein UI ke liए
+    showToast("success", `Product marked as ${newStatus}`);
+  } catch (err) {
+    showToast("error", "Failed to update status");
+  }
+};
 
 function normalizeVariant(variant) {
   let attributes = [];
@@ -784,6 +833,9 @@ function normalizeProduct(
     ),
     isTrending: Boolean(
       product.isTrending
+    ),
+    isCombo: Boolean(
+      product.isCombo
     ),
 
     featuredimg:
@@ -1224,6 +1276,72 @@ function CardHeading({ icon: Icon, accent, title, description, action }) {
   );
 }
 
+const SortableGalleryImage = ({
+  image,
+  index,
+  preview,
+  removeGalleryImage,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: image.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    zIndex: isDragging ? 20 : "auto",
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="group relative overflow-hidden rounded-2xl border bg-background"
+    >
+      {preview && (
+        <img
+          src={preview}
+          alt={`Product image ${index + 1}`}
+          className="aspect-square w-full object-cover"
+        />
+      )}
+
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className="absolute left-2 top-2 flex h-8 w-8 touch-none cursor-grab items-center justify-center rounded-full bg-black/60 text-white shadow active:cursor-grabbing"
+        aria-label="Drag to reorder image"
+      >
+        <GripVertical size={15} />
+      </button>
+
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3 pt-8">
+        <span className="text-xs font-semibold text-white">
+          Image {index + 1}
+        </span>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => removeGalleryImage(index)}
+        className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-red-500 text-white opacity-0 shadow transition-opacity group-hover:opacity-100 sm:opacity-100"
+        aria-label={`Remove image ${index + 1}`}
+      >
+        <X size={14} />
+      </button>
+    </div>
+  );
+};
+
 export default function ProductForm({
   open,
   onOpenChange,
@@ -1235,6 +1353,67 @@ export default function ProductForm({
     useState({
       ...emptyForm,
     });
+    const [categoryPath, setCategoryPath] = useState([]);
+    function flattenCategories(items = [], parentId = null, result = []) {
+  items.forEach((category) => {
+    const normalizedCategory = {
+      ...category,
+      parentId:
+        category.parentId !== undefined &&
+        category.parentId !== null
+          ? category.parentId
+          : parentId,
+    };
+
+    result.push(normalizedCategory);
+
+    if (
+      Array.isArray(category.children) &&
+      category.children.length > 0
+    ) {
+      flattenCategories(
+        category.children,
+        category.id,
+        result
+      );
+    }
+  });
+
+  return result;
+}
+
+function buildCategoryPath(categories, categoryId) {
+  if (!categoryId) {
+    return [];
+  }
+
+  const flatCategories = flattenCategories(categories);
+  const path = [];
+
+  let currentCategory = flatCategories.find(
+    (category) =>
+      String(category.id) === String(categoryId)
+  );
+
+  while (currentCategory) {
+    path.unshift(currentCategory);
+
+    if (
+      currentCategory.parentId === null ||
+      currentCategory.parentId === undefined
+    ) {
+      break;
+    }
+
+    currentCategory = flatCategories.find(
+      (category) =>
+        String(category.id) ===
+        String(currentCategory.parentId)
+    );
+  }
+
+  return path;
+}
 
   const [brands, setBrands] =
     useState([]);
@@ -1243,6 +1422,36 @@ export default function ProductForm({
     categories,
     setCategories,
   ] = useState([]);
+
+  useEffect(() => {
+    if (
+      !Array.isArray(categories) ||
+      categories.length === 0
+    ) {
+      return;
+    }
+
+    const savedCategoryId =
+      form.categoryId ||
+      product?.categoryId ||
+      product?.category?.id;
+
+    if (!savedCategoryId) {
+      setCategoryPath([]);
+      return;
+    }
+
+    const savedPath = buildCategoryPath(
+      categories,
+      savedCategoryId
+    );
+
+    setCategoryPath(savedPath);
+  }, [
+    categories,
+    product?.id,
+    product?.categoryId,
+  ]);
 
   const [
     attributes,
@@ -1410,6 +1619,39 @@ export default function ProductForm({
       );
     }
   }
+
+  const sensors = useSensors(
+  useSensor(PointerSensor, {
+    activationConstraint: {
+      distance: 5,
+    },
+  }),
+  useSensor(TouchSensor, {
+    activationConstraint: {
+      delay: 150,
+      tolerance: 5,
+    },
+  })
+);
+
+const handleGalleryDragEnd = ({ active, over }) => {
+  if (!over || active.id === over.id) return;
+
+  setForm((previousForm) => {
+    const oldIndex = previousForm.images.findIndex(
+      (image) => image.id === active.id
+    );
+
+    const newIndex = previousForm.images.findIndex(
+      (image) => image.id === over.id
+    );
+
+    return {
+      ...previousForm,
+      images: arrayMove(previousForm.images, oldIndex, newIndex),
+    };
+  });
+};
 
   const parentCategories =
     useMemo(
@@ -1955,50 +2197,32 @@ export default function ProductForm({
     }));
   }
 
-  function handleFeaturedImage(
-    event
-  ) {
-    const file =
-      event.target.files?.[0];
+function handleFeaturedImage(event) {
+  const file = event.target.files?.[0];
 
-    if (!file) {
-      return;
-    }
-
-    if (
-      !file.type.startsWith(
-        "image/"
-      )
-    ) {
-      alert(
-        "Please select a valid image."
-      );
-
-      event.target.value = "";
-
-      return;
-    }
-
-    if (
-      file.size >
-      5 * 1024 * 1024
-    ) {
-      alert(
-        "Image must be less than 5MB."
-      );
-
-      event.target.value = "";
-
-      return;
-    }
-
-    setForm((previous) => ({
-      ...previous,
-      featuredimg: file,
-    }));
-
-    event.target.value = "";
+  if (!file) {
+    return;
   }
+
+  if (!file.type.startsWith("image/")) {
+    alert("Please select a valid image.");
+    event.target.value = "";
+    return;
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    alert("Image must be less than 5MB.");
+    event.target.value = "";
+    return;
+  }
+
+  setForm((previous) => ({
+    ...previous,
+    featuredimg: file,
+  }));
+
+  event.target.value = "";
+}
 
   function removeFeaturedImage() {
     setForm((previous) => ({
@@ -2007,47 +2231,40 @@ export default function ProductForm({
     }));
   }
 
-  function handleGalleryImages(
-    event
-  ) {
-    const files = Array.from(
-      event.target.files || []
-    );
+function handleGalleryImages(event) {
+  const files = Array.from(event.target.files || []);
 
-    if (!files.length) {
-      return;
+  if (!files.length) {
+    return;
+  }
+
+  const validFiles = files.filter((file) => {
+    if (!file.type.startsWith("image/")) {
+      return false;
     }
 
-    const validFiles =
-      files.filter((file) => {
-        if (
-          !file.type.startsWith(
-            "image/"
-          )
-        ) {
-          return false;
-        }
+    if (file.size > 5 * 1024 * 1024) {
+      return false;
+    }
 
-        if (
-          file.size >
-          5 * 1024 * 1024
-        ) {
-          return false;
-        }
+    return true;
+  });
 
-        return true;
-      });
+const galleryImages = form.images.map((image) => {
+  return image.file || image.url;
+});
 
-    setForm((previous) => ({
-      ...previous,
-      images: [
-        ...(previous.images || []),
-        ...validFiles,
-      ],
-    }));
 
-    event.target.value = "";
-  }
+  setForm((previous) => ({
+    ...previous,
+    images: [
+      ...(previous.images || []),
+      ...galleryImages,
+    ],
+  }));
+
+  event.target.value = "";
+}
 
   function removeGalleryImage(
     index
@@ -2142,21 +2359,37 @@ export default function ProductForm({
     });
   }
 
-  function getImagePreview(
-    image
-  ) {
-    if (!image) {
-      return null;
-    }
-
-    if (
-      typeof image === "string"
-    ) {
-      return image;
-    }
-
-    return getFilePreview(image);
+  function getImagePreview(image) {
+  if (!image) {
+    return null;
   }
+
+  // API se aayi direct image URL
+  if (typeof image === "string") {
+    return image;
+  }
+
+  // Featured image ka raw File
+  if (image instanceof File) {
+    return URL.createObjectURL(image);
+  }
+
+  // Gallery image object
+  if (image.file instanceof File) {
+    return URL.createObjectURL(image.file);
+  }
+
+  // API image object
+  if (image.url) {
+    return image.url;
+  }
+
+  if (image.image) {
+    return image.image;
+  }
+
+  return null;
+}
 
   function goToStep(step) {
     setCurrentStep(step);
@@ -2334,8 +2567,8 @@ export default function ProductForm({
     }
 
     const finalCategoryId =
-      form.subCategoryId ||
       form.categoryId ||
+      form.subCategoryId ||
       form.parentCategoryId;
 
     const numericCategoryId =
@@ -2431,6 +2664,11 @@ export default function ProductForm({
       isTrending:
         Boolean(
           form.isTrending
+        ),
+
+      isCombo:
+        Boolean(
+          form.isCombo
         ),
 
       featuredimg:
@@ -2713,69 +2951,187 @@ export default function ProductForm({
     );
   }
 
-  function renderCategorySelection() {
-    const accent = getStepAccent(1);
+  function getCategoryChildren(category) {
+  if (!category) {
+    return [];
+  }
 
-    return (
-      <div className="space-y-3 sm:col-span-2">
-        <div className="rounded-xl border bg-muted/20 p-4">
+  if (
+    Array.isArray(category.children) &&
+    category.children.length > 0
+  ) {
+    return category.children;
+  }
+
+  return categories.filter(
+    (item) =>
+      String(item.parentId) === String(category.id)
+  );
+}
+function handleCategoryLevelChange(level, value) {
+  if (value === "none") {
+    const updatedPath = categoryPath.slice(0, level);
+
+    setCategoryPath(updatedPath);
+
+    setForm((previous) => ({
+      ...previous,
+      parentCategoryId: updatedPath[0]?.id
+        ? String(updatedPath[0].id)
+        : "",
+      subCategoryId: updatedPath[1]?.id
+        ? String(updatedPath[1].id)
+        : "",
+      categoryId: updatedPath.length
+        ? String(updatedPath[updatedPath.length - 1].id)
+        : "",
+    }));
+
+    return;
+  }
+
+  const availableCategories =
+    level === 0
+      ? parentCategories
+      : getCategoryChildren(categoryPath[level - 1]);
+
+  const selectedCategory =
+    availableCategories.find(
+      (category) =>
+        String(category.id) === String(value)
+    );
+
+  if (!selectedCategory) {
+    return;
+  }
+
+  // Current level ke baad ki previous selections remove hongi
+  const updatedPath = [
+    ...categoryPath.slice(0, level),
+    selectedCategory,
+  ];
+
+  setCategoryPath(updatedPath);
+
+  setForm((previous) => ({
+    ...previous,
+
+    // First selected category
+    parentCategoryId: updatedPath[0]?.id
+      ? String(updatedPath[0].id)
+      : "",
+
+    // Backward compatibility ke liye second level
+    subCategoryId: updatedPath[1]?.id
+      ? String(updatedPath[1].id)
+      : "",
+
+    // Hamesha deepest selected category product mein save hogi
+    categoryId: String(
+      updatedPath[updatedPath.length - 1].id
+    ),
+  }));
+
+  setErrors((previous) => ({
+    ...previous,
+    parentCategoryId: "",
+    subCategoryId: "",
+    categoryId: "",
+  }));
+}
+
+function renderCategorySelection() {
+  const accent = getStepAccent(1);
+
+  const categoryLevels = [];
+
+  // First level: parent categories
+  categoryLevels.push({
+    title: "Parent Category",
+    description: "Select the main category",
+    categories: parentCategories,
+    selectedId: categoryPath[0]?.id,
+  });
+
+  // Selected categories ke children ke dropdowns
+  categoryPath.forEach((selectedCategory, index) => {
+    const children =
+      getCategoryChildren(selectedCategory);
+
+    if (children.length > 0) {
+      categoryLevels.push({
+        title:
+          index === 0
+            ? "Child Category"
+            : `Sub Category Level ${index + 1}`,
+        description: `Select a category inside ${selectedCategory.name}`,
+        categories: children,
+        selectedId: categoryPath[index + 1]?.id,
+      });
+    }
+  });
+
+  return (
+    <div className="space-y-3 sm:col-span-2">
+      {categoryLevels.map((level, levelIndex) => (
+        <div
+          key={`category-level-${levelIndex}`}
+          className="rounded-xl border bg-muted/20 p-4"
+        >
           <div className="mb-3 flex items-center gap-2.5">
             <div
               className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${accent.solid}`}
             >
-              1
+              {levelIndex + 1}
             </div>
 
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-semibold">
-                Parent Category
+                {level.title}
               </p>
 
-              <p className="text-xs text-muted-foreground">
-                Select the parent category first
+              <p className="truncate text-xs text-muted-foreground">
+                {level.description}
               </p>
             </div>
           </div>
 
           <Select
             value={
-              form.parentCategoryId ||
-              "none"
+              level.selectedId
+                ? String(level.selectedId)
+                : "none"
             }
-            onValueChange={
-              handleParentCategoryChange
+            onValueChange={(value) =>
+              handleCategoryLevelChange(
+                levelIndex,
+                value
+              )
             }
             disabled={
-              loadingCategories
+              loadingCategories ||
+              level.categories.length === 0
             }
           >
-            <SelectTrigger
-              className={`h-11 bg-background ${errors.parentCategoryId
-                ? "border-red-400 focus:ring-red-400"
-                : ""
-                }`}
-            >
+            <SelectTrigger className="h-11 bg-background">
               <SelectValue
-                placeholder={
-                  loadingCategories
-                    ? "Loading categories..."
-                    : "Select parent category"
-                }
+                placeholder={`Select ${level.title.toLowerCase()}`}
               />
             </SelectTrigger>
 
             <SelectContent className="max-h-[320px]">
               <SelectItem value="none">
-                Select parent category
+                Select {level.title.toLowerCase()}
               </SelectItem>
 
-              {parentCategories.map(
-                (category) => (
+              {level.categories.map((category) => {
+                const children =
+                  getCategoryChildren(category);
+
+                return (
                   <SelectItem
-                    key={category.id}
-                    value={String(
-                      category.id
-                    )}
+                    key={`${levelIndex}-${category.id}`}
+                    value={String(category.id)}
                   >
                     <span className="flex items-center gap-2">
                       <FolderTree
@@ -2783,261 +3139,61 @@ export default function ProductForm({
                         className={accent.icon}
                       />
 
-                      {category.name}
+                      <span>{category.name}</span>
 
-                      {category.children
-                        ?.length >
-                        0 && (
-                          <span className="text-xs text-muted-foreground">
-                            (
-                            {
-                              category
-                                .children
-                                .length
-                            }{" "}
-                            sub)
-                          </span>
-                        )}
+                      {children.length > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          ({children.length} sub)
+                        </span>
+                      )}
                     </span>
                   </SelectItem>
-                )
-              )}
+                );
+              })}
             </SelectContent>
           </Select>
-
-          <FieldError
-            message={
-              errors.parentCategoryId
-            }
-          />
-
-          {selectedParentCategory && (
-            <div className="mt-3 flex items-center gap-3 rounded-lg border bg-background p-3">
-              <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg border">
-                {selectedParentCategory.image ? (
-                  <img
-                    src={
-                      selectedParentCategory.image
-                    }
-                    alt={
-                      selectedParentCategory.name
-                    }
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-muted">
-                    <FolderTree
-                      size={16}
-                      className="text-muted-foreground"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="min-w-0">
-                <p className="text-[11px] text-muted-foreground">
-                  Parent selected
-                </p>
-
-                <p className="truncate text-sm font-semibold">
-                  {
-                    selectedParentCategory.name
-                  }
-                </p>
-              </div>
-
-              <Check
-                size={17}
-                className="ml-auto shrink-0 text-emerald-500"
-              />
-            </div>
-          )}
         </div>
+      ))}
 
+      {categoryPath.length > 0 && (
         <div
-          className={`rounded-xl border bg-muted/20 p-4 transition-opacity ${!form.parentCategoryId ? "opacity-60" : ""
-            }`}
+          className={`rounded-xl border p-4 ${accent.border} ${accent.chip}`}
         >
-          <div className="mb-3 flex items-center gap-2.5">
-            <div
-              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${form.parentCategoryId
-                ? `text-white ${accent.solid}`
-                : "bg-muted text-muted-foreground"
-                }`}
-            >
-              2
-            </div>
+          <p className="text-xs font-medium text-muted-foreground">
+            Final Product Category
+          </p>
 
-            <div>
-              <p className="text-sm font-semibold">
-                Sub Category
-              </p>
+          <p className="mt-1 text-sm font-semibold">
+            {categoryPath
+              .map((category) => category.name)
+              .join(" → ")}
+          </p>
 
-              <p className="text-xs text-muted-foreground">
-                Select the child category
-              </p>
-            </div>
+          <div className="mt-3 inline-flex rounded-lg bg-background px-3 py-2 text-xs">
+            <span className="text-muted-foreground">
+              Final Category ID:&nbsp;
+            </span>
+
+            <span className="font-semibold">
+              {
+                categoryPath[
+                  categoryPath.length - 1
+                ]?.id
+              }
+            </span>
           </div>
-
-          <Select
-            value={
-              form.subCategoryId ||
-              "none"
-            }
-            onValueChange={
-              handleSubCategoryChange
-            }
-            disabled={
-              !form.parentCategoryId ||
-              loadingCategories ||
-              subCategories.length ===
-              0
-            }
-          >
-            <SelectTrigger
-              className={`h-11 bg-background ${errors.subCategoryId
-                ? "border-red-400 focus:ring-red-400"
-                : ""
-                }`}
-            >
-              <SelectValue
-                placeholder={
-                  !form.parentCategoryId
-                    ? "Select parent first"
-                    : subCategories.length ===
-                      0
-                      ? "No subcategories"
-                      : "Select sub category"
-                }
-              />
-            </SelectTrigger>
-
-            <SelectContent className="max-h-[320px]">
-              <SelectItem value="none">
-                Select sub category
-              </SelectItem>
-
-              {subCategories.map(
-                (category) => (
-                  <SelectItem
-                    key={category.id}
-                    value={String(
-                      category.id
-                    )}
-                  >
-                    <span className="flex items-center gap-2">
-                      <span className="text-muted-foreground">
-                        └
-                      </span>
-
-                      {category.name}
-                    </span>
-                  </SelectItem>
-                )
-              )}
-            </SelectContent>
-          </Select>
-
-          <FieldError
-            message={
-              errors.subCategoryId
-            }
-          />
-
-          {!form.parentCategoryId && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              First select a parent category.
-            </p>
-          )}
-
-          {form.parentCategoryId &&
-            subCategories.length ===
-            0 && (
-              <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
-                <AlertCircle size={12} className="shrink-0" />
-                No subcategories here, so the parent category will be used directly.
-              </p>
-            )}
-
-          {selectedSubCategory && (
-            <div className="mt-3 flex items-center gap-3 rounded-lg border bg-background p-3">
-              <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg border">
-                {selectedSubCategory.image ? (
-                  <img
-                    src={
-                      selectedSubCategory.image
-                    }
-                    alt={
-                      selectedSubCategory.name
-                    }
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-muted">
-                    <FolderTree
-                      size={16}
-                      className="text-muted-foreground"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="min-w-0">
-                <p className="text-[11px] text-muted-foreground">
-                  Sub category selected
-                </p>
-
-                <p className="truncate text-sm font-semibold">
-                  {
-                    selectedParentCategory?.name
-                  }{" "}
-                  →{" "}
-                  {
-                    selectedSubCategory.name
-                  }
-                </p>
-              </div>
-
-              <Check
-                size={17}
-                className="ml-auto shrink-0 text-emerald-500"
-              />
-            </div>
-          )}
         </div>
+      )}
 
-        {(selectedParentCategory ||
-          selectedSubCategory) && (
-            <div className={`rounded-xl border p-4 ${accent.border} ${accent.chip}`}>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground">
-                    Final Product Category
-                  </p>
-
-                  <p className="mt-1 text-sm font-semibold">
-                    {selectedSubCategory
-                      ? `${selectedParentCategory?.name} → ${selectedSubCategory.name}`
-                      : selectedParentCategory?.name}
-                  </p>
-                </div>
-
-                <div className="rounded-lg bg-background px-3 py-2 text-xs">
-                  <span className="text-muted-foreground">
-                    Category ID:{" "}
-                  </span>
-
-                  <span className="font-semibold">
-                    {form.categoryId ||
-                      form.parentCategoryId}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-      </div>
-    );
-  }
+      <FieldError
+        message={
+          errors.categoryId ||
+          errors.parentCategoryId
+        }
+      />
+    </div>
+  );
+}
 
   function renderBasicInfo() {
     const accent = getStepAccent(1);
@@ -3329,10 +3485,7 @@ export default function ProductForm({
   function renderImages() {
     const accent = getStepAccent(2);
 
-    const featuredPreview =
-      getImagePreview(
-        form.featuredimg
-      );
+   const featuredPreview = getImagePreview(form.featuredimg);
 
     return (
       <div className="space-y-6">
@@ -3448,64 +3601,44 @@ export default function ProductForm({
             </label>
           </div>
 
-          {form.images?.length >
-            0 ? (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-              {form.images.map(
-                (image, index) => {
-                  const preview =
-                    getImagePreview(
-                      image
-                    );
+         {form.images?.length > 0 ? (
+  <DndContext
+    sensors={sensors}
+    collisionDetection={closestCenter}
+    onDragEnd={handleGalleryDragEnd}
+  >
+ <SortableContext
+  items={form.images.map((image) => image.id)}
+  strategy={rectSortingStrategy}
+>
+  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+    {form.images.map((image, index) => (
+      <SortableGalleryImage
+        key={image.id}
+        image={image}
+        index={index}
+        preview={getImagePreview(image)}
+        removeGalleryImage={removeGalleryImage}
+      />
+    ))}
+  </div>
+</SortableContext>
+  </DndContext>
+) : (
+  <div
+    className={`flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed p-10 text-center ${accent.icon}`}
+  >
+    <Images size={28} />
 
-                  return (
-                    <div
-                      key={index}
-                      className="group relative overflow-hidden rounded-2xl border bg-background"
-                    >
-                      {preview && (
-                        <img
-                          src={preview}
-                          alt={`Product image ${index + 1
-                            }`}
-                          className="aspect-square w-full object-cover"
-                        />
-                      )}
+    <p className="text-sm font-medium text-foreground">
+      No gallery images yet
+    </p>
 
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3 pt-8">
-                        <span className="text-xs font-semibold text-white">
-                          Image{" "}
-                          {index + 1}
-                        </span>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          removeGalleryImage(
-                            index
-                          )
-                        }
-                        className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-red-500 text-white opacity-0 shadow transition-opacity group-hover:opacity-100 sm:opacity-100"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  );
-                }
-              )}
-            </div>
-          ) : (
-            <div className={`flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed p-10 text-center ${accent.icon}`}>
-              <Images size={28} />
-              <p className="text-sm font-medium text-foreground">
-                No gallery images yet
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Use "Add Images" above to upload a few.
-              </p>
-            </div>
-          )}
+    <p className="text-xs text-muted-foreground">
+      Use "Add Images" above to upload a few.
+    </p>
+  </div>
+)}
         </div>
       </div>
     );
@@ -3903,29 +4036,19 @@ export default function ProductForm({
                         />
                       </div>
 
-                      <div className="grid gap-2">
-                        <Label>
-                          Weight
-                        </Label>
-
-                        <Input
-                          value={
-                            variant.weight ??
-                            ""
-                          }
-                          onChange={(
-                            event
-                          ) =>
-                            handleVariantChange(
-                              index,
-                              "weight",
-                              event.target
-                                .value
-                            )
-                          }
-                          placeholder="0.1"
-                        />
-                      </div>
+                   <div className="grid gap-2">
+  <label>Weight (in kg)</label>
+  <Input
+    type="number" // NAYA — sirf numbers accept karega
+    step="0.01"   // NAYA — decimal values allow karega (0.15, 0.5, etc.)
+    min="0"       // NAYA — negative values block karega
+    value={variant.weight ?? ""}
+    onChange={(event) =>
+      handleVariantChange(index, "weight", event.target.value)
+    }
+    placeholder="0.1"
+  />
+</div>
                     </div>
 
                     {selectedAttribute && (
@@ -4886,6 +5009,12 @@ export default function ProductForm({
         "Trending Product",
         "Show this product as trending.",
         Award,
+      ],
+      [
+        "isCombo",
+        "Combo Product",
+        "Show this product as a combo.",
+        Layers3,
       ],
     ];
 
