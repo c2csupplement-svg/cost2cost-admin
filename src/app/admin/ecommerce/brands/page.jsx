@@ -1176,7 +1176,7 @@ export default function BrandsPage() {
                         e.target.value
                       )
                     }
-                    placeholder="#0000"
+                    placeholder="#000"
                   />
                 </div>
 
