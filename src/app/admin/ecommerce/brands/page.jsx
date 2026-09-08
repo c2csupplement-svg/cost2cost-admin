@@ -635,7 +635,7 @@ export default function BrandsPage() {
 
       formData.append(
         "bgColor",
-        brandForm.bgColor?.trim() || "#000000"
+        brandForm.bgColor?.trim() 
       );
 
       formData.append(
@@ -1176,7 +1176,7 @@ export default function BrandsPage() {
                         e.target.value
                       )
                     }
-                    placeholder="#000000"
+                    placeholder="# code"
                   />
                 </div>
 
