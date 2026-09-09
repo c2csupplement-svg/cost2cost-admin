@@ -331,6 +331,7 @@ export default function CategoriesPage() {
     setCategoryForm({
       name: category.name || "",
       slug: category.slug || "",
+      description:category.description || "",
       parentId:
         category.parentId === null ||
           category.parentId === undefined
