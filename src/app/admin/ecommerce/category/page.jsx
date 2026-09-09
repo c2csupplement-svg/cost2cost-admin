@@ -307,7 +307,7 @@ export default function CategoriesPage() {
       name: "",
       slug: "",
       parentId: String(parentCategory.id),
-      description: category.description || "",
+      description: "",
       image: null,
       seo: createEmptySeo(),
     });
