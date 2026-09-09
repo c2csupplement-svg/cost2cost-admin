@@ -849,21 +849,6 @@ function normalizeProduct(
   };
 }
 
-function getFilePreview(file) {
-  if (!file) {
-    return null;
-  }
-
-  if (
-    typeof File !== "undefined" &&
-    file instanceof File
-  ) {
-    return URL.createObjectURL(file);
-  }
-
-  return null;
-}
-
 function isValidUrl(value) {
   try {
     new URL(value);
@@ -873,8 +858,7 @@ function isValidUrl(value) {
   }
 }
 
-const SLUG_REGEX =
-  /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 function isValidSlug(value) {
   return SLUG_REGEX.test(value);
@@ -1026,9 +1010,9 @@ function validateVariants(
           "Price must be greater than 0.";
       }
 
-       if (!variant.size || !String(variant.size).trim()) {
-      errors.variantSize = "Size is required.";
-    }
+      if (!variant.size || !String(variant.size).trim()) {
+        errors.variantSize = "Size is required.";
+      }
 
       if (
         variant.discountedPrice !==
@@ -1307,6 +1291,79 @@ const SortableGalleryImage = ({
   );
 };
 
+function ConfirmDialog({
+  open,
+  onCancel,
+  onConfirm,
+  icon: Icon = AlertCircle,
+  tone = "danger",
+  title,
+  description,
+  confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
+  confirmLoading = false,
+}) {
+  const toneStyles =
+    tone === "danger"
+      ? {
+        iconWrap: "bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400",
+        confirmBtn: "bg-red-600 text-white hover:bg-red-700",
+      }
+      : {
+        iconWrap: "bg-muted text-foreground",
+        confirmBtn: "",
+      };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onCancel?.();
+      }}
+    >
+      <DialogContent
+        close={onCancel}
+        className="w-[calc(100%-2rem)] max-w-sm overflow-hidden rounded-2xl p-0 py-3"
+      >
+        <div className="p-6">
+          <div
+            className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${toneStyles.iconWrap}`}
+          >
+            <Icon size={22} />
+          </div>
+
+          <div className="mt-4 text-center">
+            <h3 className="text-base font-semibold">{title}</h3>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              {description}
+            </p>
+          </div>
+        </div>
+
+        <DialogFooter className="flex-row gap-2 border-t bg-muted/20 px-6 py-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            className="flex-1"
+          >
+            {cancelLabel}
+          </Button>
+
+          <Button
+            type="button"
+            onClick={onConfirm}
+            disabled={confirmLoading}
+            className={`flex-1 ${toneStyles.confirmBtn}`}
+          >
+            {confirmLoading ? "Please wait…" : confirmLabel}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function ProductForm({
   open,
   onOpenChange,
@@ -1315,8 +1372,39 @@ export default function ProductForm({
   saving,
 }) {
 
-  const [removeVariantConfirm, setemoveVariantConfirm] = useState(false)
-  
+  const [removeVariantConfirm, setRemoveVariantConfirm] = useState(null);
+
+    const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+
+    function requestRemoveVariant(index) {
+  if (form.variants.length <= 1) return;
+  setRemoveVariantConfirm(index);
+}
+
+function confirmRemoveVariant() {
+  if (removeVariantConfirm !== null) {
+    removeVariant(removeVariantConfirm);
+  }
+  setRemoveVariantConfirm(null);
+}
+
+function cancelRemoveVariant() {
+  setRemoveVariantConfirm(null);
+}
+
+function requestCloseForm() {
+  setCloseConfirmOpen(true);
+}
+
+function confirmCloseForm() {
+  setCloseConfirmOpen(false);
+  onOpenChange(false);
+}
+
+function cancelCloseForm() {
+  setCloseConfirmOpen(false);
+}
+
   const [form, setForm] =
     useState({
       ...emptyForm,
@@ -2587,9 +2675,6 @@ export default function ProductForm({
       ...form.seo,
       schema: {
         ...form.seo.schema,
-        // Persist the resolved JSON-LD (custom override if present,
-        // otherwise the auto-generated schema) so the backend/storefront
-        // doesn't need to regenerate it from scratch.
         resolvedJson:
           effectiveJsonLd.isValid
             ? effectiveJsonLd.value
@@ -2961,6 +3046,7 @@ export default function ProductForm({
         String(item.parentId) === String(category.id)
     );
   }
+
   function handleCategoryLevelChange(level, value) {
     if (value === "none") {
       const updatedPath = categoryPath.slice(0, level);
@@ -3536,7 +3622,7 @@ export default function ProductForm({
 
                 <input
                   type="file"
-                   accept=".webp,image/webp"
+                  accept=".webp,image/webp"
                   className="hidden"
                   onChange={
                     handleFeaturedImage
@@ -3554,7 +3640,7 @@ export default function ProductForm({
 
               <input
                 type="file"
-                 accept=".webp,image/webp"
+                accept=".webp,image/webp"
                 className="hidden"
                 onChange={
                   handleFeaturedImage
@@ -3582,7 +3668,7 @@ export default function ProductForm({
 
               <input
                 type="file"
-                 accept=".webp,image/webp"
+                accept=".webp,image/webp"
                 multiple
                 className="hidden"
                 onChange={
@@ -3731,22 +3817,17 @@ export default function ProductForm({
                       </div>
                     </div>
 
-                    {form.variants
-                      .length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() =>
-                            removeVariant(
-                              index
-                            )
-                          }
-                          className="text-red-500 hover:bg-red-50 hover:text-red-600"
-                        >
-                          <X size={17} />
-                        </Button>
-                      )}
+                    {form.variants.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => requestRemoveVariant(index)}
+                        className="text-red-500 hover:bg-red-50 hover:text-red-600"
+                      >
+                        <X size={17} />
+                      </Button>
+                    )}
                   </div>
 
                   <div className="space-y-6 p-4 sm:p-5">
@@ -4026,7 +4107,7 @@ export default function ProductForm({
                         <label>Weight (in kg)</label>
                         <Input
                           type="number"
-                          step="0.01"  
+                          step="0.01"
                           value={variant.weight ?? ""}
                           onChange={(event) =>
                             handleVariantChange(index, "weight", event.target.value)
@@ -4232,16 +4313,16 @@ export default function ProductForm({
           )}
         </div>
         <div className="flex w-full justify-end">
-  <Button
-    type="button"
-    variant="outline"
-    onClick={addVariant}
-    className="w-full shrink-0 bg-red-600 text-white sm:w-auto"
-  >
-    <Plus size={16} className="mr-2" />
-    Add Variant
-  </Button>
-</div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addVariant}
+            className="w-full shrink-0 bg-red-600 text-white sm:w-auto"
+          >
+            <Plus size={16} className="mr-2" />
+            Add Variant
+          </Button>
+        </div>
       </div>
     );
   }
@@ -6096,28 +6177,22 @@ export default function ProductForm({
 
   const closeFromXRef = useRef(false);
 
-  const handleDialogOpenChange = (nextOpen) => {
-    if (nextOpen) {
-      onOpenChange(true);
-      return;
-    }
-
-    if (closeFromXRef.current) {
-      closeFromXRef.current = false;
-      onOpenChange(false);
-    }
-  };
+const handleDialogOpenChange = (nextOpen) => {
+  if (nextOpen) {
+    onOpenChange(true);
+    return;
+  }
+  requestCloseForm();
+};
 
   return (
+    <>
     <Dialog
       open={open}
       onOpenChange={handleDialogOpenChange}
     >
       <DialogContent
-        close={() => {
-          closeFromXRef.current = true;
-          onOpenChange(false);
-        }}
+        close={() => {requestCloseForm();}}
         className="
       flex
       h-[100dvh]
@@ -6251,5 +6326,34 @@ export default function ProductForm({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <ConfirmDialog
+      open={removeVariantConfirm !== null}
+      icon={AlertCircle}
+      tone="danger"
+      title="Remove this variant?"
+      description={
+        removeVariantConfirm !== null
+          ? `Variant ${removeVariantConfirm + 1} — its pricing, stock, dimensions and image will be permanently removed. This can't be undone.`
+          : ""
+      }
+      confirmLabel="Remove Variant"
+      cancelLabel="Keep Variant"
+      onCancel={cancelRemoveVariant}
+      onConfirm={confirmRemoveVariant}
+    />
+
+    <ConfirmDialog
+      open={closeConfirmOpen}
+      icon={AlertCircle}
+      tone="danger"
+      title="Discard changes?"
+      description="You have unsaved changes on this product. Closing now will discard everything you've entered."
+      confirmLabel="Discard & Close"
+      cancelLabel="Keep Editing"
+      onCancel={cancelCloseForm}
+      onConfirm={confirmCloseForm}
+    />
+    </>
   );
 }

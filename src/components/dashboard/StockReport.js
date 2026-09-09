@@ -94,8 +94,8 @@ export default function StockReport({ items }) {
                 <Badge
                   className={`whitespace-nowrap text-[10px] ${
                     item.paymentStatus === "paid"
-                      ? "bg-green-100 text-green-700 hover:bg-green-100"
-                      : "bg-red-100 text-red-700 hover:bg-red-100"
+                      ? "bg-green-100 text-green-700 hover:bg-green-100":(item.paymentStatus === "partial_paid")?"bg-red-100 text-yellow-700 hover:bg-yellow-100": "bg-red-100 text-red-700 hover:bg-red-100"
+                      
                   }`}
                 >
                   {item.paymentStatus}
