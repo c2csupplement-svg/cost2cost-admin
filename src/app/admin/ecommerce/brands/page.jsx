@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -147,6 +147,7 @@ const steps = [
 ];
 
 export default function BrandsPage() {
+  const closeFromXRef = useRef(false);
   const [brands, setBrands] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -820,6 +821,20 @@ export default function BrandsPage() {
     );
   }
 
+
+
+  const handleDialogOpenChange = (nextOpen) => {
+    if (nextOpen) {
+      setFormOpen(true);
+      return;
+    }
+
+    if (closeFromXRef.current) {
+      closeFromXRef.current = false;
+      setFormOpen(false);
+    }
+  };
+
   return (
     <div className="w-full space-y-4 sm:space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -983,13 +998,13 @@ export default function BrandsPage() {
 
       <Dialog
         open={formOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            closeForm();
-          }
-        }}
-      >
-        <DialogContent className="flex max-h-[92vh] w-[calc(100%-1rem)] flex-col overflow-hidden p-0 sm:max-w-[720px]">
+        setFormOpen={handleDialogOpenChange}
+    >
+      <DialogContent
+        close={() => {
+          closeFromXRef.current = true;
+          setFormOpen(false);
+        }} className="flex max-h-[92vh] w-[calc(100%-1rem)] flex-col overflow-hidden p-0 sm:max-w-[720px]">
           <DialogHeader className="shrink-0 border-b px-4 py-4 sm:px-6">
             <DialogTitle className="text-lg sm:text-xl">
               {editingBrand

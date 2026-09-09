@@ -10,8 +10,8 @@ function getAuthHeaders() {
 
     return token
         ? {
-              Authorization: `Bearer ${token}`,
-          }
+            Authorization: `Bearer ${token}`,
+        }
         : {};
 }
 
@@ -95,8 +95,8 @@ function getErrorResponse(
 export const createProductFormData = (productData) => {
     const formData = new FormData();
     const {
-        id,           
-        categoryId,  
+        id,
+        categoryId,
         featuredimg,
         images,
         variants,
@@ -114,11 +114,8 @@ export const createProductFormData = (productData) => {
         ...rest
     } = productData;
 
-
     Object.entries(rest).forEach(([key, value]) => {
-        if (value === null || value === undefined) {
-            return;
-        }
+        if (value === null || value === undefined) return;
         formData.append(key, value);
     });
 
@@ -145,12 +142,6 @@ export const createProductFormData = (productData) => {
     });
 
     if (variants !== undefined) {
-        // Each variant may carry a freshly-picked image File (imageFile).
-        // Strip it out before JSON-stringifying the variants array (a File
-        // serializes to "{}"), and append it separately as a real upload —
-        // "variantImageIndexes" tells the backend which variant (by
-        // position in this array) each uploaded file belongs to, since
-        // only some variants may have a new image.
         const variantImageIndexes = [];
 
         const cleanedVariants = (variants ?? []).map((variant, index) => {
@@ -166,9 +157,7 @@ export const createProductFormData = (productData) => {
 
         formData.append("variants", JSON.stringify(cleanedVariants));
 
-        if (variantImageIndexes.length > 0) {
-            formData.append("variantImageIndexes", JSON.stringify(variantImageIndexes));
-        }
+        formData.append("variantImageIndexes", JSON.stringify(variantImageIndexes));
     }
 
     if (featuredimg instanceof File) {
@@ -178,14 +167,6 @@ export const createProductFormData = (productData) => {
     }
 
     if (Array.isArray(images)) {
-        // Gallery entries come from ProductForm as either a plain URL
-        // (kept image) or a { id, url, file } wrapper holding a freshly
-        // picked File — a bare `img instanceof File` check here always
-        // failed, so no new gallery image ever actually got uploaded.
-        // "imagesLayout" carries the admin's final order (URL string per
-        // kept image, null placeholder per new file); the files are
-        // appended in that same left-to-right order so the backend can
-        // slot each upload into the right spot after drag-reordering.
         const imagesLayout = images.map((img) => {
             const file = img instanceof File ? img : img?.file;
 
@@ -202,7 +183,7 @@ export const createProductFormData = (productData) => {
 
     return formData;
 };
- 
+
 export const getProduct = async (page, limit) => {
     try {
         const response = await axios.get(
@@ -271,7 +252,7 @@ export const deleteProduct = async (id) => {
 };
 
 export const updateProduct = async (
-    id,
+id,
     productData
 ) => {
     try {
@@ -289,6 +270,8 @@ export const updateProduct = async (
             createProductFormData(
                 productData
             );
+
+        console.log(productData)
 
         const response =
             await axios.put(
@@ -354,51 +337,75 @@ export const createProduct = async (
 };
 
 export const searchProduct = async (product) => {
-  try {
-    const response = await axios.get(
-      `${API_URL}search?q=${encodeURIComponent(product)}&all=true`,
-      {
-        headers: {
-          ...getAuthHeaders(),
-          Accept: "application/json",
-        },
-      }
-    );
+    try {
+        const response = await axios.get(
+            `${API_URL}search?q=${encodeURIComponent(product)}&all=true`,
+            {
+                headers: {
+                    ...getAuthHeaders(),
+                    Accept: "application/json",
+                },
+            }
+        );
 
-    return response.data;
-  } catch (error) {
-    console.error("Search products failed:", error);
-    return getErrorResponse(error, "Failed to load products");
-  }
+        return response.data;
+    } catch (error) {
+        console.error("Search products failed:", error);
+        return getErrorResponse(error, "Failed to load products");
+    }
 };
-
 
 export const updateProductStatus = async (
-  productId,
-  status
+    productId,
+    status
 ) => {
-  const statusUrl =
-    `${API_URL}${productId}/status`;
+    const statusUrl =
+        `${API_URL}${productId}/status`;
 
-  try {
-    const response = await axios.patch(
-      statusUrl,
-      { status },
-      {
-        headers: getAuthHeaders(),
-      }
-    );
+    try {
+        const response = await axios.patch(
+            statusUrl,
+            { status },
+            {
+                headers: getAuthHeaders(),
+            }
+        );
 
-    return response.data;
-  } catch (error) {
-    console.error(
-      "Update product status failed:",
-      error
-    );
+        return response.data;
+    } catch (error) {
+        console.error(
+            "Update product status failed:",
+            error
+        );
 
-    return getErrorResponse(
-      error,
-      "Failed to update product status"
-    );
-  }
+        return getErrorResponse(
+            error,
+            "Failed to update product status"
+        );
+    }
 };
+
+export const addReview = async (productReview) => {
+    try {
+        const response = await axios.post(
+            `${process.env.NEXT_PUBLIC_API_BASE}/api/reviews/dashboard/add`,
+            productReview,
+            {
+                headers: getAuthHeaders(),
+            }
+        );
+
+        return response.data;
+    }
+    catch (err) {
+        console.error(
+            "Update product status failed:",
+            err
+        );
+
+        return getErrorResponse(
+            err,
+            "Failed to update product status"
+        );
+    }
+}

@@ -110,6 +110,11 @@ const navGroups = [
         label:"PageSeo",
         href: "/admin/ecommerce/pageseo",
         icon: SlidersHorizontal ,
+      },
+      {
+        label:"Review",
+        href: "/admin/ecommerce/review",
+        icon: SlidersHorizontal ,
       }
     ],
   },

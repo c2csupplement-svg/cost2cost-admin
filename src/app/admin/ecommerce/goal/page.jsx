@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect,useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +48,7 @@ const emptyGoal = {
 };
 
 export default function GoalsPage() {
+    const closeFromXRef = useRef(false);
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -60,6 +61,19 @@ export default function GoalsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [goalToDelete, setGoalToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+
+
+   const handleDialogOpenChange = (nextOpen) => {
+    if (nextOpen) {
+      setFormOpen(true);
+      return;
+    }
+
+    if (closeFromXRef.current) {
+      closeFromXRef.current = false;
+      setFormOpen(false);
+    }
+  };
 
   useEffect(() => {
     fetchGoals();
@@ -611,11 +625,13 @@ export default function GoalsPage() {
 
       <Dialog
         open={formOpen}
-        onOpenChange={(open) => {
-          if (!open) closeForm();
-        }}
-      >
-        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-[650px]">
+        setFormOpen={handleDialogOpenChange}
+    >
+      <DialogContent
+        close={() => {
+          closeFromXRef.current = true;
+          setFormOpen(false);
+        }} className="max-h-[92vh] overflow-y-auto sm:max-w-[650px]">
           <DialogHeader>
             <DialogTitle>
               {editingGoal ? "Update Goal" : "Create Goal"}
