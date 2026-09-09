@@ -354,32 +354,25 @@ export const createProduct = async (
 };
 
 export const searchProduct = async (product) => {
-    try {
-        const response = await axios.get(
-            `${API_URL}search?q=${product}`,
-            {
-                headers: {
-                    ...getAuthHeaders(),
-                    Accept:
-                        "application/json",
-                },
-            }
-        );
+  try {
+    const response = await axios.get(
+      `${API_URL}search?q=${encodeURIComponent(product)}&all=true`,
+      {
+        headers: {
+          ...getAuthHeaders(),
+          Accept: "application/json",
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Search products failed:", error);
+    return getErrorResponse(error, "Failed to load products");
+  }
+};
 
 
-        return response.data;
-    } catch (error) {
-        console.error(
-            "Get products failed:",
-            error
-        );
-
-        return getErrorResponse(
-            error,
-            "Failed to load products"
-        );
-    }
-}
 export const updateProductStatus = async (
   productId,
   status
