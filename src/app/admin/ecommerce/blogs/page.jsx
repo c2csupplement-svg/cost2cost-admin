@@ -19,15 +19,15 @@ import {
 import { toast } from "sonner";
 
 import {
-  Plus,
-  Pencil,
-  Trash2,
-  FileText,
-  ImagePlus,
-  X,
-  Braces,
-  Link2,
-  CircleHelp,
+    Plus,
+    Pencil,
+    Trash2,
+    FileText,
+    ImagePlus,
+    X,
+    Braces,
+    Link2,
+    CircleHelp,
 } from "lucide-react";
 
 import DeleteConfirmDialog from "@/app/components/ui/DeleteConfirmDialog";
@@ -79,8 +79,21 @@ const emptyBlog = {
 };
 
 export default function BlogsPage() {
+      const closeFromXRef = useRef(false);
     const [blogs, setBlogs] = useState([]);
     const contentTextareaRef = useRef(null);
+
+      const handleDialogOpenChange = (nextOpen) => {
+    if (nextOpen) {
+      setFormOpen(true);
+      return;
+    }
+
+    if (closeFromXRef.current) {
+      closeFromXRef.current = false;
+      setFormOpen(false);
+    }
+  };
 
     const [loading, setLoading] =
         useState(true);
@@ -983,10 +996,10 @@ export default function BlogsPage() {
                                         >
                                             <span
                                                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-xs font-bold transition ${active
-                                                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                                                        : completed
-                                                            ? "border-primary/30 bg-primary/10 text-primary"
-                                                            : "border-muted-foreground/20 bg-background text-muted-foreground"
+                                                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                                                    : completed
+                                                        ? "border-primary/30 bg-primary/10 text-primary"
+                                                        : "border-muted-foreground/20 bg-background text-muted-foreground"
                                                     }`}
                                             >
                                                 {completed ? "✓" : step.id}
@@ -995,8 +1008,8 @@ export default function BlogsPage() {
                                             <span className="min-w-0">
                                                 <span
                                                     className={`block truncate text-xs font-semibold ${active
-                                                            ? "text-foreground"
-                                                            : "text-muted-foreground"
+                                                        ? "text-foreground"
+                                                        : "text-muted-foreground"
                                                         }`}
                                                 >
                                                     {step.title}
@@ -1010,8 +1023,8 @@ export default function BlogsPage() {
                                         {index < steps.length - 1 && (
                                             <div
                                                 className={`mx-2 h-px min-w-5 flex-1 ${currentStep > step.id
-                                                        ? "bg-primary"
-                                                        : "bg-border"
+                                                    ? "bg-primary"
+                                                    : "bg-border"
                                                     }`}
                                             />
                                         )}
@@ -1053,8 +1066,8 @@ export default function BlogsPage() {
                                 onClick={() => goToStep(step.id)}
                                 aria-label={`Go to ${step.title}`}
                                 className={`h-1.5 min-w-7 rounded-full transition-all ${currentStep >= step.id
-                                        ? "bg-primary"
-                                        : "bg-muted-foreground/20"
+                                    ? "bg-primary"
+                                    : "bg-muted-foreground/20"
                                     }`}
                             />
                         ))}
@@ -1093,61 +1106,61 @@ export default function BlogsPage() {
                     />
                 </div>
 
-<div className="min-w-0 space-y-3">
-  <Label htmlFor="blog-content">
-    Content
-    <span className="ml-1 text-red-500">*</span>
-  </Label>
+                <div className="min-w-0 space-y-3">
+                    <Label htmlFor="blog-content">
+                        Content
+                        <span className="ml-1 text-red-500">*</span>
+                    </Label>
 
-  {/* Content toolbar */}
-  <div className="flex w-full flex-col gap-3 rounded-xl border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
-    <div className="flex flex-wrap items-center gap-2">
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={handleAddLink}
-        className="h-9 shrink-0 gap-2 bg-background"
-      >
-        <Link2 size={15} />
-        Add Link
-      </Button>
+                    {/* Content toolbar */}
+                    <div className="flex w-full flex-col gap-3 rounded-xl border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={handleAddLink}
+                                className="h-9 shrink-0 gap-2 bg-background"
+                            >
+                                <Link2 size={15} />
+                                Add Link
+                            </Button>
 
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={handleAddFaq}
-        className="h-9 shrink-0 gap-2 bg-background"
-      >
-        <CircleHelp size={15} />
-        Add FAQ
-      </Button>
-    </div>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={handleAddFaq}
+                                className="h-9 shrink-0 gap-2 bg-background"
+                            >
+                                <CircleHelp size={15} />
+                                Add FAQ
+                            </Button>
+                        </div>
 
-    <p className="text-xs leading-5 text-muted-foreground sm:text-right">
-      Select text before adding a link.
-    </p>
-  </div>
+                        <p className="text-xs leading-5 text-muted-foreground sm:text-right">
+                            Select text before adding a link.
+                        </p>
+                    </div>
 
-  {/* Content textarea */}
-  <Textarea
-    ref={contentTextareaRef}
-    id="blog-content"
-    value={blogForm.content}
-    onChange={(e) =>
-      handleInputChange("content", e.target.value)
-    }
-    placeholder="<p>Full blog HTML content here...</p>"
-    rows={14}
-    className="block h-[230px] max-h-[300px] w-full resize-y overflow-scroll whitespace-pre-wrap rounded-xl font-mono text-xs leading-6 sm:min-h-[320px] sm:text-sm"
-  />
+                    {/* Content textarea */}
+                    <Textarea
+                        ref={contentTextareaRef}
+                        id="blog-content"
+                        value={blogForm.content}
+                        onChange={(e) =>
+                            handleInputChange("content", e.target.value)
+                        }
+                        placeholder="<p>Full blog HTML content here...</p>"
+                        rows={14}
+                        className="block h-[230px] max-h-[300px] w-full resize-y overflow-scroll whitespace-pre-wrap rounded-xl font-mono text-xs leading-6 sm:min-h-[320px] sm:text-sm"
+                    />
 
-  <p className="text-xs leading-5 text-muted-foreground">
-    HTML content is supported. Links and FAQs will be
-    inserted at the cursor position.
-  </p>
-</div>
+                    <p className="text-xs leading-5 text-muted-foreground">
+                        HTML content is supported. Links and FAQs will be
+                        inserted at the cursor position.
+                    </p>
+                </div>
                 <div className="space-y-2">
                     <Label htmlFor="blog-excerpt">Excerpt</Label>
 
@@ -1491,114 +1504,114 @@ export default function BlogsPage() {
             </div>
         );
     }
-function escapeHtml(value = "") {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function insertIntoContent(html) {
-  const textarea = contentTextareaRef.current;
-  const currentContent = blogForm.content || "";
-
-  if (!textarea) {
-    handleInputChange(
-      "content",
-      `${currentContent}\n${html}`
-    );
-    return;
-  }
-
-  const start = textarea.selectionStart;
-  const end = textarea.selectionEnd;
-
-  const updatedContent =
-    currentContent.slice(0, start) +
-    html +
-    currentContent.slice(end);
-
-  handleInputChange("content", updatedContent);
-
-  requestAnimationFrame(() => {
-    const newPosition = start + html.length;
-
-    textarea.focus();
-    textarea.setSelectionRange(
-      newPosition,
-      newPosition
-    );
-  });
-}
-
-function handleAddLink() {
-  const selectedText = (() => {
-    const textarea = contentTextareaRef.current;
-
-    if (!textarea) {
-      return "";
+    function escapeHtml(value = "") {
+        return value
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
     }
 
-    return (blogForm.content || "").slice(
-      textarea.selectionStart,
-      textarea.selectionEnd
-    );
-  })();
+    function insertIntoContent(html) {
+        const textarea = contentTextareaRef.current;
+        const currentContent = blogForm.content || "";
 
-  const linkText = window.prompt(
-    "Enter link text:",
-    selectedText
-  );
+        if (!textarea) {
+            handleInputChange(
+                "content",
+                `${currentContent}\n${html}`
+            );
+            return;
+        }
 
-  if (!linkText?.trim()) {
-    return;
-  }
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
 
-  const linkUrl = window.prompt(
-    "Enter URL:",
-    "https://"
-  );
+        const updatedContent =
+            currentContent.slice(0, start) +
+            html +
+            currentContent.slice(end);
 
-  if (!linkUrl?.trim()) {
-    return;
-  }
+        handleInputChange("content", updatedContent);
 
-  const safeText = escapeHtml(linkText.trim());
-  const safeUrl = escapeHtml(linkUrl.trim());
+        requestAnimationFrame(() => {
+            const newPosition = start + html.length;
 
-  insertIntoContent(
-    `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeText}</a>`
-  );
-}
+            textarea.focus();
+            textarea.setSelectionRange(
+                newPosition,
+                newPosition
+            );
+        });
+    }
 
-function handleAddFaq() {
-  const question = window.prompt(
-    "Enter FAQ question:"
-  );
+    function handleAddLink() {
+        const selectedText = (() => {
+            const textarea = contentTextareaRef.current;
 
-  if (!question?.trim()) {
-    return;
-  }
+            if (!textarea) {
+                return "";
+            }
 
-  const answer = window.prompt(
-    "Enter FAQ answer:"
-  );
+            return (blogForm.content || "").slice(
+                textarea.selectionStart,
+                textarea.selectionEnd
+            );
+        })();
 
-  if (!answer?.trim()) {
-    return;
-  }
+        const linkText = window.prompt(
+            "Enter link text:",
+            selectedText
+        );
 
-  const safeQuestion = escapeHtml(
-    question.trim()
-  );
+        if (!linkText?.trim()) {
+            return;
+        }
 
-  const safeAnswer = escapeHtml(
-    answer.trim()
-  );
+        const linkUrl = window.prompt(
+            "Enter URL:",
+            "https://"
+        );
 
-  const faqHtml = `
+        if (!linkUrl?.trim()) {
+            return;
+        }
+
+        const safeText = escapeHtml(linkText.trim());
+        const safeUrl = escapeHtml(linkUrl.trim());
+
+        insertIntoContent(
+            `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeText}</a>`
+        );
+    }
+
+    function handleAddFaq() {
+        const question = window.prompt(
+            "Enter FAQ question:"
+        );
+
+        if (!question?.trim()) {
+            return;
+        }
+
+        const answer = window.prompt(
+            "Enter FAQ answer:"
+        );
+
+        if (!answer?.trim()) {
+            return;
+        }
+
+        const safeQuestion = escapeHtml(
+            question.trim()
+        );
+
+        const safeAnswer = escapeHtml(
+            answer.trim()
+        );
+
+        const faqHtml = `
 <div class="blog-faq">
   <details>
     <summary>${safeQuestion}</summary>
@@ -1606,8 +1619,8 @@ function handleAddFaq() {
   </details>
 </div>`;
 
-  insertIntoContent(faqHtml);
-}
+        insertIntoContent(faqHtml);
+    }
 
     async function handleSave() {
         if (!validateCurrentStep()) {
@@ -2025,14 +2038,14 @@ function handleAddFaq() {
                                                 <td className="px-4 py-4">
                                                     <span
                                                         className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${blog.status === "published"
-                                                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-                                                                : "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
+                                                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                                                            : "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
                                                             }`}
                                                     >
                                                         <span
                                                             className={`mr-1.5 h-1.5 w-1.5 rounded-full ${blog.status === "published"
-                                                                    ? "bg-emerald-500"
-                                                                    : "bg-amber-500"
+                                                                ? "bg-emerald-500"
+                                                                : "bg-amber-500"
                                                                 }`}
                                                         />
                                                         {blog.status === "published" ? "Published" : "Draft"}
@@ -2116,8 +2129,8 @@ function handleAddFaq() {
                                                 </h3>
                                                 <span
                                                     className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${blog.status === "published"
-                                                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-                                                            : "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
+                                                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                                                        : "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
                                                         }`}
                                                 >
                                                     {blog.status === "published" ? "Published" : "Draft"}
@@ -2172,13 +2185,13 @@ function handleAddFaq() {
 
             <Dialog
                 open={formOpen}
-                onOpenChange={(open) => {
-                    if (!open) {
-                        closeForm();
-                    }
-                }}>
-
-                <DialogContent className="flex max-h-[94dvh] w-[calc(100%-1rem)] flex-col gap-0 overflow-hidden p-0 sm:w-[calc(100%-2rem)] sm:max-w-[900px]">
+                setFormOpen={handleDialogOpenChange}
+            >
+                <DialogContent
+                    close={() => {
+                        closeFromXRef.current = true;
+                        setFormOpen(false);
+                    }} className="flex max-h-[94dvh] w-[calc(100%-1rem)] flex-col gap-0 overflow-hidden p-0 sm:w-[calc(100%-2rem)] sm:max-w-[900px]">
 
                     <DialogHeader className="shrink-0 border-b px-4 py-4 sm:px-6">
                         <DialogTitle className="text-base sm:text-lg">
@@ -2508,8 +2521,8 @@ function handleAddFaq() {
                                                         rows={17}
                                                         spellCheck={false}
                                                         className={`font-mono text-xs ${jsonLdError
-                                                                ? "border-red-400 focus-visible:ring-red-400"
-                                                                : ""
+                                                            ? "border-red-400 focus-visible:ring-red-400"
+                                                            : ""
                                                             }`}
                                                         placeholder={`{
   "@context": "https://schema.org",

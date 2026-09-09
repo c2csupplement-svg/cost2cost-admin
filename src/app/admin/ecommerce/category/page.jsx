@@ -64,6 +64,7 @@ const emptyCategory = {
   slug: "",
   parentId: "",
   image: null,
+  description: "",
   seo: createEmptySeo(),
 };
 
@@ -137,14 +138,14 @@ export default function CategoriesPage() {
       keywordsInput: "",
       keywords: Array.isArray(seo?.keywords)
         ? seo.keywords
-            .map((keyword) => String(keyword).trim())
-            .filter(Boolean)
+          .map((keyword) => String(keyword).trim())
+          .filter(Boolean)
         : typeof seo?.keywords === "string"
-        ? seo.keywords
+          ? seo.keywords
             .split(",")
             .map((keyword) => keyword.trim())
             .filter(Boolean)
-        : [],
+          : [],
       facebook: {
         ...defaults.facebook,
         ...(seo?.facebook || {}),
@@ -174,18 +175,19 @@ export default function CategoriesPage() {
       name: category.name || "",
       slug: category.slug || "",
       image: category.image || null,
+      description: category.description,
       parentId:
         category.parentId === null ||
-        category.parentId === undefined ||
-        category.parentId === ""
+          category.parentId === undefined ||
+          category.parentId === ""
           ? null
           : Number(category.parentId),
       createdAt: category.createdAt || null,
       seo: normalizeSeo(category.seo),
       children: Array.isArray(category.children)
         ? category.children
-            .map(normalizeCategory)
-            .filter(Boolean)
+          .map(normalizeCategory)
+          .filter(Boolean)
         : [],
     };
   };
@@ -215,8 +217,8 @@ export default function CategoriesPage() {
         rawCategories
       )
         ? rawCategories
-            .map(normalizeCategory)
-            .filter(Boolean)
+          .map(normalizeCategory)
+          .filter(Boolean)
         : [];
 
       setCategories(normalizedCategories);
@@ -285,6 +287,7 @@ export default function CategoriesPage() {
       name: "",
       slug: "",
       parentId: "",
+      description: "",
       image: null,
       seo: createEmptySeo(),
     });
@@ -304,6 +307,7 @@ export default function CategoriesPage() {
       name: "",
       slug: "",
       parentId: String(parentCategory.id),
+      description: category.description || "",
       image: null,
       seo: createEmptySeo(),
     });
@@ -329,7 +333,7 @@ export default function CategoriesPage() {
       slug: category.slug || "",
       parentId:
         category.parentId === null ||
-        category.parentId === undefined
+          category.parentId === undefined
           ? ""
           : String(category.parentId),
       image: category.image || null,
@@ -649,9 +653,9 @@ export default function CategoriesPage() {
           prev.seo.keywords
         )
           ? prev.seo.keywords.filter(
-              (keyword) =>
-                keyword !== keywordToRemove
-            )
+            (keyword) =>
+              keyword !== keywordToRemove
+          )
           : [],
       },
     }));
@@ -662,10 +666,10 @@ export default function CategoriesPage() {
       categoryForm.seo.keywords
     )
       ? categoryForm.seo.keywords
-          .map((keyword) =>
-            String(keyword).trim()
-          )
-          .filter(Boolean)
+        .map((keyword) =>
+          String(keyword).trim()
+        )
+        .filter(Boolean)
       : [];
 
     return {
@@ -737,6 +741,7 @@ export default function CategoriesPage() {
     try {
       const name = categoryForm.name.trim();
       const slug = categoryForm.slug.trim();
+      const description = categoryForm.description.trim();
 
       if (!name) {
         toast.error("Category name is required");
@@ -750,8 +755,8 @@ export default function CategoriesPage() {
 
       const parentId =
         categoryForm.parentId === "" ||
-        categoryForm.parentId === null ||
-        categoryForm.parentId === undefined
+          categoryForm.parentId === null ||
+          categoryForm.parentId === undefined
           ? null
           : Number(categoryForm.parentId);
 
@@ -782,6 +787,7 @@ export default function CategoriesPage() {
         name,
         slug,
         parentId,
+        description,
         image: imageFile || null,
         seo: buildSeoPayload(),
       };
@@ -1027,8 +1033,8 @@ export default function CategoriesPage() {
               <td className="px-4 py-4 text-sm text-muted-foreground">
                 {category.createdAt
                   ? new Date(
-                      category.createdAt
-                    ).toLocaleDateString()
+                    category.createdAt
+                  ).toLocaleDateString()
                   : "-"}
               </td>
 
@@ -1204,15 +1210,15 @@ export default function CategoriesPage() {
                   {editingCategory
                     ? "Edit Category"
                     : categoryForm.parentId
-                    ? "Add Sub Category"
-                    : "Add Category"}
+                      ? "Add Sub Category"
+                      : "Add Category"}
                 </h2>
 
                 <p className="mt-1 text-xs text-muted-foreground">
                   {categoryForm.parentId
                     ? `Sub category of ${getParentName(
-                        categoryForm.parentId
-                      )}`
+                      categoryForm.parentId
+                    )}`
                     : "Create a top-level category"}
                 </p>
               </div>
@@ -1243,7 +1249,7 @@ export default function CategoriesPage() {
                 {
                   id: 3,
                   label: "Social SEO",
-                  icon: Share2 ,
+                  icon: Share2,
                 },
                 {
                   id: 4,
@@ -1263,11 +1269,10 @@ export default function CategoriesPage() {
                       setSeoStep(step.id)
                     }
                     disabled={saving}
-                    className={`flex min-w-max items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                      active
+                    className={`flex min-w-max items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${active
                         ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground hover:bg-muted"
-                    }`}
+                      }`}
                   >
                     <Icon size={15} />
                     {step.label}
@@ -1322,11 +1327,31 @@ export default function CategoriesPage() {
 
                   <div className="space-y-2">
                     <Label>
+                      Description
+                    </Label>
+
+                    <div className="w-full">
+                      <textarea
+                        value={categoryForm.description}
+                        onChange={(e) =>
+                          setCategoryForm(
+                            (prev) => ({
+                              ...prev,
+                              description: e.target.value
+                            })
+                          )
+                        }
+                        placeholder="Enter Category Description" className="w-full border-1 border-grey rounded-2xl h-[180px] px-4 py-1 text-xs text-muted-foreground" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>
                       Parent Category
                     </Label>
 
                     {categoryForm.parentId &&
-                    !editingCategory ? (
+                      !editingCategory ? (
                       <div className="rounded-lg border bg-muted/40 p-3">
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
@@ -1601,16 +1626,16 @@ export default function CategoriesPage() {
                               .keywords
                           )
                             ? categoryForm.seo
-                                .keywords.length
+                              .keywords.length
                             : 0}{" "}
                           keyword
                           {Array.isArray(
                             categoryForm.seo
                               .keywords
                           ) &&
-                          categoryForm.seo
-                            .keywords
-                            .length === 1
+                            categoryForm.seo
+                              .keywords
+                              .length === 1
                             ? ""
                             : "s"}
                         </span>
@@ -1769,7 +1794,7 @@ export default function CategoriesPage() {
                 <div className="space-y-6">
                   <div>
                     <div className="flex items-center gap-2">
-                      <Share2  size={19} />
+                      <Share2 size={19} />
 
                       <h3 className="text-lg font-semibold">
                         Social SEO
@@ -1783,7 +1808,7 @@ export default function CategoriesPage() {
 
                   <div className="rounded-xl border p-4 sm:p-5">
                     <div className="mb-5 flex items-center gap-2">
-                      <Share2  size={18} />
+                      <Share2 size={18} />
 
                       <h4 className="font-semibold">
                         Facebook
@@ -1914,7 +1939,7 @@ export default function CategoriesPage() {
 
                   <div className="rounded-xl border p-4 sm:p-5">
                     <div className="mb-5 flex items-center gap-2">
-                      <Share2  size={18} />
+                      <Share2 size={18} />
 
                       <h4 className="font-semibold">
                         Twitter / X
@@ -2086,21 +2111,19 @@ export default function CategoriesPage() {
                           )
                         }
                         disabled={saving}
-                        className={`relative h-6 w-11 shrink-0 rounded-full transition ${
-                          categoryForm.seo
+                        className={`relative h-6 w-11 shrink-0 rounded-full transition ${categoryForm.seo
                             .schema.enabled
                             ? "bg-primary"
                             : "bg-muted"
-                        }`}
+                          }`}
                         aria-label="Toggle schema"
                       >
                         <span
-                          className={`absolute top-1 h-4 w-4 rounded-full bg-white transition ${
-                            categoryForm.seo
+                          className={`absolute top-1 h-4 w-4 rounded-full bg-white transition ${categoryForm.seo
                               .schema.enabled
                               ? "left-6"
                               : "left-1"
-                          }`}
+                            }`}
                         />
                       </button>
                     </div>
@@ -2108,92 +2131,92 @@ export default function CategoriesPage() {
 
                   {categoryForm.seo.schema
                     .enabled && (
-                    <>
-                      <div className="space-y-2">
-                        <Label>
-                          Schema Type
-                        </Label>
-
-                        <select
-                          value={
-                            categoryForm.seo
-                              .schema.type
-                          }
-                          onChange={(e) =>
-                            handleSchemaChange(
-                              "type",
-                              e.target.value
-                            )
-                          }
-                          disabled={saving}
-                          className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                        >
-                          <option value="CollectionPage">
-                            CollectionPage
-                          </option>
-
-                          <option value="ItemList">
-                            ItemList
-                          </option>
-
-                          <option value="WebPage">
-                            WebPage
-                          </option>
-
-                          <option value="Product">
-                            Product
-                          </option>
-
-                          <option value="BreadcrumbList">
-                            BreadcrumbList
-                          </option>
-
-                          <option value="Custom">
-                            Custom
-                          </option>
-                        </select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
+                      <>
+                        <div className="space-y-2">
                           <Label>
-                            Custom JSON-LD
+                            Schema Type
                           </Label>
 
-                          <span className="text-xs text-muted-foreground">
-                            JSON format
-                          </span>
+                          <select
+                            value={
+                              categoryForm.seo
+                                .schema.type
+                            }
+                            onChange={(e) =>
+                              handleSchemaChange(
+                                "type",
+                                e.target.value
+                              )
+                            }
+                            disabled={saving}
+                            className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                          >
+                            <option value="CollectionPage">
+                              CollectionPage
+                            </option>
+
+                            <option value="ItemList">
+                              ItemList
+                            </option>
+
+                            <option value="WebPage">
+                              WebPage
+                            </option>
+
+                            <option value="Product">
+                              Product
+                            </option>
+
+                            <option value="BreadcrumbList">
+                              BreadcrumbList
+                            </option>
+
+                            <option value="Custom">
+                              Custom
+                            </option>
+                          </select>
                         </div>
 
-                        <textarea
-                          value={
-                            categoryForm.seo
-                              .schema
-                              .customJson
-                          }
-                          onChange={(e) =>
-                            handleSchemaChange(
-                              "customJson",
-                              e.target.value
-                            )
-                          }
-                          placeholder={`{
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Label>
+                              Custom JSON-LD
+                            </Label>
+
+                            <span className="text-xs text-muted-foreground">
+                              JSON format
+                            </span>
+                          </div>
+
+                          <textarea
+                            value={
+                              categoryForm.seo
+                                .schema
+                                .customJson
+                            }
+                            onChange={(e) =>
+                              handleSchemaChange(
+                                "customJson",
+                                e.target.value
+                              )
+                            }
+                            placeholder={`{
   "@context": "https://schema.org",
   "@type": "CollectionPage",
   "name": "Category Name",
   "url": "https://example.com/category/category-slug"
 }`}
-                          disabled={saving}
-                          className="min-h-[260px] w-full rounded-md border bg-background px-3 py-3 font-mono text-xs outline-none focus:ring-2 focus:ring-ring"
-                        />
+                            disabled={saving}
+                            className="min-h-[260px] w-full rounded-md border bg-background px-3 py-3 font-mono text-xs outline-none focus:ring-2 focus:ring-ring"
+                          />
 
-                        <p className="text-xs text-muted-foreground">
-                          Leave empty if your backend
-                          generates JSON-LD automatically.
-                        </p>
-                      </div>
-                    </>
-                  )}
+                          <p className="text-xs text-muted-foreground">
+                            Leave empty if your backend
+                            generates JSON-LD automatically.
+                          </p>
+                        </div>
+                      </>
+                    )}
                 </div>
               )}
             </div>
@@ -2285,13 +2308,13 @@ export default function CategoriesPage() {
 
             {deleteDialog.category?.children
               ?.length > 0 && (
-              <div className="mt-4 rounded-lg bg-yellow-50 p-3 text-sm text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-300">
-                This category contains sub
-                categories. Make sure you handle
-                the related categories before
-                deleting.
-              </div>
-            )}
+                <div className="mt-4 rounded-lg bg-yellow-50 p-3 text-sm text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-300">
+                  This category contains sub
+                  categories. Make sure you handle
+                  the related categories before
+                  deleting.
+                </div>
+              )}
 
             <div className="mt-6 flex justify-end gap-2">
               <Button

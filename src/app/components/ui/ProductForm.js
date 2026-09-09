@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,47 +13,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, } from "@/components/ui/select";
 import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import {
-  Plus,
-  Upload,
-  X,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  ImagePlus,
-  Package,
-  Settings2,
-  FileText,
-  Search,
-  Images,
-  Layers3,
-  FolderTree,
-  AlertCircle,
-  Sparkles,
-  Star,
-  TrendingUp,
-  Clock,
-  Award,
-  Code2,
-  Braces,
-  Share2,
-  Link2,
-  AtSign,
-  Copy,
-  CheckCheck,
-  Globe,
-  MessageCircle,
-  Tag,
-  Power,
-CircleCheck,
-CircleX,
+  Plus, Upload, X, Check, ChevronLeft, ChevronRight, ImagePlus, Package, Settings2, FileText,
+  Search, Images, Layers3, FolderTree, AlertCircle, Sparkles, Star, TrendingUp, Clock, Award, Code2,
+  Braces, Share2, Link2, AtSign, Copy, CheckCheck, Globe, MessageCircle, Tag, Power, CircleCheck, CircleX,
 } from "lucide-react";
 import { getBrands } from "@/apiService/brandApi";
 import { getCategory } from "@/apiService/categoryApi";
@@ -75,7 +39,7 @@ import {
 } from "@dnd-kit/sortable";
 
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical} from "lucide-react";
+import { GripVertical } from "lucide-react";
 
 const emptyVariant = {
   size: "",
@@ -543,7 +507,6 @@ function normalizeVariant(variant) {
     productId: variant?.productId,
 
     size: variant?.size ?? "",
-    // flavour: variant?.flavour ?? null,
 
     price: variant?.price ?? "",
     discountedPrice:
@@ -1063,6 +1026,10 @@ function validateVariants(
           "Price must be greater than 0.";
       }
 
+       if (!variant.size || !String(variant.size).trim()) {
+      errors.variantSize = "Size is required.";
+    }
+
       if (
         variant.discountedPrice !==
         "" &&
@@ -1120,9 +1087,7 @@ function validateVariants(
           selectedAttribute.value ?? ""
         ).trim()
       ) {
-        // An attribute is picked but its value is blank — the backend
-        // silently drops attributes with an empty value, so without this
-        // check the admin never finds out it didn't save.
+
         errors.attributeValue =
           "Enter a value for the selected attribute, or remove it.";
       }
@@ -1349,71 +1314,74 @@ export default function ProductForm({
   onSave,
   saving,
 }) {
+
+  const [removeVariantConfirm, setemoveVariantConfirm] = useState(false)
+  
   const [form, setForm] =
     useState({
       ...emptyForm,
     });
-    const [categoryPath, setCategoryPath] = useState([]);
-    function flattenCategories(items = [], parentId = null, result = []) {
-  items.forEach((category) => {
-    const normalizedCategory = {
-      ...category,
-      parentId:
-        category.parentId !== undefined &&
-        category.parentId !== null
-          ? category.parentId
-          : parentId,
-    };
+  const [categoryPath, setCategoryPath] = useState([]);
+  function flattenCategories(items = [], parentId = null, result = []) {
+    items.forEach((category) => {
+      const normalizedCategory = {
+        ...category,
+        parentId:
+          category.parentId !== undefined &&
+            category.parentId !== null
+            ? category.parentId
+            : parentId,
+      };
 
-    result.push(normalizedCategory);
+      result.push(normalizedCategory);
 
-    if (
-      Array.isArray(category.children) &&
-      category.children.length > 0
-    ) {
-      flattenCategories(
-        category.children,
-        category.id,
-        result
+      if (
+        Array.isArray(category.children) &&
+        category.children.length > 0
+      ) {
+        flattenCategories(
+          category.children,
+          category.id,
+          result
+        );
+      }
+    });
+
+    return result;
+  }
+
+  function buildCategoryPath(categories, categoryId) {
+    if (!categoryId) {
+      return [];
+    }
+
+    const flatCategories = flattenCategories(categories);
+    const path = [];
+
+    let currentCategory = flatCategories.find(
+      (category) =>
+        String(category.id) === String(categoryId)
+    );
+
+    while (currentCategory) {
+      path.unshift(currentCategory);
+
+      if (
+        currentCategory.parentId === null ||
+        currentCategory.parentId === undefined
+      ) {
+        break;
+      }
+
+      currentCategory = flatCategories.find(
+        (category) =>
+          String(category.id) ===
+          String(currentCategory.parentId)
       );
     }
-  });
 
-  return result;
-}
-
-function buildCategoryPath(categories, categoryId) {
-  if (!categoryId) {
-    return [];
+    return path;
   }
-
-  const flatCategories = flattenCategories(categories);
-  const path = [];
-
-  let currentCategory = flatCategories.find(
-    (category) =>
-      String(category.id) === String(categoryId)
-  );
-
-  while (currentCategory) {
-    path.unshift(currentCategory);
-
-    if (
-      currentCategory.parentId === null ||
-      currentCategory.parentId === undefined
-    ) {
-      break;
-    }
-
-    currentCategory = flatCategories.find(
-      (category) =>
-        String(category.id) ===
-        String(currentCategory.parentId)
-    );
-  }
-
-  return path;
-}
 
   const [brands, setBrands] =
     useState([]);
@@ -1488,8 +1456,6 @@ function buildCategoryPath(categories, categoryId) {
     setSchemaCopied,
   ] = useState(false);
 
-  // Scratch text for the "paste multiple points at once" boxes on the
-  // Details step — keyed by field name (keyBenefits, howToUse, ...).
   const [bulkDetailInputs, setBulkDetailInputs] = useState({});
 
   useEffect(() => {
@@ -1627,37 +1593,37 @@ function buildCategoryPath(categories, categoryId) {
   }
 
   const sensors = useSensors(
-  useSensor(PointerSensor, {
-    activationConstraint: {
-      distance: 5,
-    },
-  }),
-  useSensor(TouchSensor, {
-    activationConstraint: {
-      delay: 150,
-      tolerance: 5,
-    },
-  })
-);
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 150,
+        tolerance: 5,
+      },
+    })
+  );
 
-const handleGalleryDragEnd = ({ active, over }) => {
-  if (!over || active.id === over.id) return;
+  const handleGalleryDragEnd = ({ active, over }) => {
+    if (!over || active.id === over.id) return;
 
-  setForm((previousForm) => {
-    const oldIndex = previousForm.images.findIndex(
-      (image) => image.id === active.id
-    );
+    setForm((previousForm) => {
+      const oldIndex = previousForm.images.findIndex(
+        (image) => image.id === active.id
+      );
 
-    const newIndex = previousForm.images.findIndex(
-      (image) => image.id === over.id
-    );
+      const newIndex = previousForm.images.findIndex(
+        (image) => image.id === over.id
+      );
 
-    return {
-      ...previousForm,
-      images: arrayMove(previousForm.images, oldIndex, newIndex),
-    };
-  });
-};
+      return {
+        ...previousForm,
+        images: arrayMove(previousForm.images, oldIndex, newIndex),
+      };
+    });
+  };
 
   const parentCategories =
     useMemo(
@@ -1743,9 +1709,6 @@ const handleGalleryDragEnd = ({ active, over }) => {
       form.brandId,
     ]);
 
-  // The JSON-LD that will actually be emitted: the user's custom override
-  // when they've supplied one, otherwise an auto-generated Product schema
-  // kept in sync with the rest of the form.
   const effectiveJsonLd = useMemo(() => {
     const customJson = form.seo?.schema?.customJson;
 
@@ -1995,8 +1958,7 @@ const handleGalleryDragEnd = ({ active, over }) => {
     }));
   }
 
-  // Splits a pasted/typed multi-line block into individual points so
-  // users don't have to click "Add" once per line.
+
   function addBulkArrayItems(field, text) {
     const lines = (text || "")
       .split("\n")
@@ -2226,32 +2188,32 @@ const handleGalleryDragEnd = ({ active, over }) => {
     }));
   }
 
-function handleFeaturedImage(event) {
-  const file = event.target.files?.[0];
+  function handleFeaturedImage(event) {
+    const file = event.target.files?.[0];
 
-  if (!file) {
-    return;
-  }
+    if (!file) {
+      return;
+    }
 
-  if (!file.type.startsWith("image/")) {
-    alert("Please select a valid image.");
+    if (!file.type.startsWith("image/")) {
+      alert("Please select a valid image.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image must be less than 5MB.");
+      event.target.value = "";
+      return;
+    }
+
+    setForm((previous) => ({
+      ...previous,
+      featuredimg: file,
+    }));
+
     event.target.value = "";
-    return;
   }
-
-  if (file.size > 5 * 1024 * 1024) {
-    alert("Image must be less than 5MB.");
-    event.target.value = "";
-    return;
-  }
-
-  setForm((previous) => ({
-    ...previous,
-    featuredimg: file,
-  }));
-
-  event.target.value = "";
-}
 
   function removeFeaturedImage() {
     setForm((previous) => ({
@@ -2260,47 +2222,47 @@ function handleFeaturedImage(event) {
     }));
   }
 
-function handleGalleryImages(event) {
-  const files = Array.from(event.target.files || []);
+  function handleGalleryImages(event) {
+    const files = Array.from(event.target.files || []);
 
-  if (!files.length) {
-    return;
-  }
-
-  const validFiles = files.filter((file) => {
-    if (!file.type.startsWith("image/")) {
-      return false;
+    if (!files.length) {
+      return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      return false;
+    const validFiles = files.filter((file) => {
+      if (!file.type.startsWith("image/")) {
+        return false;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        return false;
+      }
+
+      return true;
+    });
+
+    if (!validFiles.length) {
+      alert("Please select valid images (JPG, PNG, WEBP) under 5MB.");
+      event.target.value = "";
+      return;
     }
 
-    return true;
-  });
+    const newImages = validFiles.map((file) => ({
+      id: crypto.randomUUID(),
+      url: null,
+      file,
+    }));
 
-  if (!validFiles.length) {
-    alert("Please select valid images (JPG, PNG, WEBP) under 5MB.");
+    setForm((previous) => ({
+      ...previous,
+      images: [
+        ...(previous.images || []),
+        ...newImages,
+      ],
+    }));
+
     event.target.value = "";
-    return;
   }
-
-  const newImages = validFiles.map((file) => ({
-    id: crypto.randomUUID(),
-    url: null,
-    file,
-  }));
-
-  setForm((previous) => ({
-    ...previous,
-    images: [
-      ...(previous.images || []),
-      ...newImages,
-    ],
-  }));
-
-  event.target.value = "";
-}
 
   function removeGalleryImage(
     index
@@ -2396,36 +2358,32 @@ function handleGalleryImages(event) {
   }
 
   function getImagePreview(image) {
-  if (!image) {
+    if (!image) {
+      return null;
+    }
+
+    if (typeof image === "string") {
+      return image;
+    }
+
+    if (image instanceof File) {
+      return URL.createObjectURL(image);
+    }
+
+    if (image.file instanceof File) {
+      return URL.createObjectURL(image.file);
+    }
+
+    if (image.url) {
+      return image.url;
+    }
+
+    if (image.image) {
+      return image.image;
+    }
+
     return null;
   }
-
-  // API se aayi direct image URL
-  if (typeof image === "string") {
-    return image;
-  }
-
-  // Featured image ka raw File
-  if (image instanceof File) {
-    return URL.createObjectURL(image);
-  }
-
-  // Gallery image object
-  if (image.file instanceof File) {
-    return URL.createObjectURL(image.file);
-  }
-
-  // API image object
-  if (image.url) {
-    return image.url;
-  }
-
-  if (image.image) {
-    return image.image;
-  }
-
-  return null;
-}
 
   function goToStep(step) {
     setCurrentStep(step);
@@ -2548,8 +2506,7 @@ function handleGalleryImages(event) {
         1500
       );
     } catch {
-      // Clipboard access can fail (permissions, insecure context) —
-      // silently ignore, the JSON is still visible in the preview.
+
     }
   }
 
@@ -2988,248 +2945,246 @@ function handleGalleryImages(event) {
   }
 
   function getCategoryChildren(category) {
-  if (!category) {
-    return [];
-  }
+    if (!category) {
+      return [];
+    }
 
-  if (
-    Array.isArray(category.children) &&
-    category.children.length > 0
-  ) {
-    return category.children;
-  }
+    if (
+      Array.isArray(category.children) &&
+      category.children.length > 0
+    ) {
+      return category.children;
+    }
 
-  return categories.filter(
-    (item) =>
-      String(item.parentId) === String(category.id)
-  );
-}
-function handleCategoryLevelChange(level, value) {
-  if (value === "none") {
-    const updatedPath = categoryPath.slice(0, level);
+    return categories.filter(
+      (item) =>
+        String(item.parentId) === String(category.id)
+    );
+  }
+  function handleCategoryLevelChange(level, value) {
+    if (value === "none") {
+      const updatedPath = categoryPath.slice(0, level);
+
+      setCategoryPath(updatedPath);
+
+      setForm((previous) => ({
+        ...previous,
+        parentCategoryId: updatedPath[0]?.id
+          ? String(updatedPath[0].id)
+          : "",
+        subCategoryId: updatedPath[1]?.id
+          ? String(updatedPath[1].id)
+          : "",
+        categoryId: updatedPath.length
+          ? String(updatedPath[updatedPath.length - 1].id)
+          : "",
+      }));
+
+      return;
+    }
+
+    const availableCategories =
+      level === 0
+        ? parentCategories
+        : getCategoryChildren(categoryPath[level - 1]);
+
+    const selectedCategory =
+      availableCategories.find(
+        (category) =>
+          String(category.id) === String(value)
+      );
+
+    if (!selectedCategory) {
+      return;
+    }
+
+    // Current level ke baad ki previous selections remove hongi
+    const updatedPath = [
+      ...categoryPath.slice(0, level),
+      selectedCategory,
+    ];
 
     setCategoryPath(updatedPath);
 
     setForm((previous) => ({
       ...previous,
+
+      // First selected category
       parentCategoryId: updatedPath[0]?.id
         ? String(updatedPath[0].id)
         : "",
+
+      // Backward compatibility ke liye second level
       subCategoryId: updatedPath[1]?.id
         ? String(updatedPath[1].id)
         : "",
-      categoryId: updatedPath.length
-        ? String(updatedPath[updatedPath.length - 1].id)
-        : "",
+
+      // Hamesha deepest selected category product mein save hogi
+      categoryId: String(
+        updatedPath[updatedPath.length - 1].id
+      ),
     }));
 
-    return;
+    setErrors((previous) => ({
+      ...previous,
+      parentCategoryId: "",
+      subCategoryId: "",
+      categoryId: "",
+    }));
   }
 
-  const availableCategories =
-    level === 0
-      ? parentCategories
-      : getCategoryChildren(categoryPath[level - 1]);
+  function renderCategorySelection() {
+    const accent = getStepAccent(1);
 
-  const selectedCategory =
-    availableCategories.find(
-      (category) =>
-        String(category.id) === String(value)
-    );
+    const categoryLevels = [];
 
-  if (!selectedCategory) {
-    return;
-  }
+    categoryLevels.push({
+      title: "Parent Category",
+      description: "Select the main category",
+      categories: parentCategories,
+      selectedId: categoryPath[0]?.id,
+    });
 
-  // Current level ke baad ki previous selections remove hongi
-  const updatedPath = [
-    ...categoryPath.slice(0, level),
-    selectedCategory,
-  ];
+    categoryPath.forEach((selectedCategory, index) => {
+      const children =
+        getCategoryChildren(selectedCategory);
 
-  setCategoryPath(updatedPath);
+      if (children.length > 0) {
+        categoryLevels.push({
+          title:
+            index === 0
+              ? "Child Category"
+              : `Sub Category Level ${index + 1}`,
+          description: `Select a category inside ${selectedCategory.name}`,
+          categories: children,
+          selectedId: categoryPath[index + 1]?.id,
+        });
+      }
+    });
 
-  setForm((previous) => ({
-    ...previous,
-
-    // First selected category
-    parentCategoryId: updatedPath[0]?.id
-      ? String(updatedPath[0].id)
-      : "",
-
-    // Backward compatibility ke liye second level
-    subCategoryId: updatedPath[1]?.id
-      ? String(updatedPath[1].id)
-      : "",
-
-    // Hamesha deepest selected category product mein save hogi
-    categoryId: String(
-      updatedPath[updatedPath.length - 1].id
-    ),
-  }));
-
-  setErrors((previous) => ({
-    ...previous,
-    parentCategoryId: "",
-    subCategoryId: "",
-    categoryId: "",
-  }));
-}
-
-function renderCategorySelection() {
-  const accent = getStepAccent(1);
-
-  const categoryLevels = [];
-
-  // First level: parent categories
-  categoryLevels.push({
-    title: "Parent Category",
-    description: "Select the main category",
-    categories: parentCategories,
-    selectedId: categoryPath[0]?.id,
-  });
-
-  // Selected categories ke children ke dropdowns
-  categoryPath.forEach((selectedCategory, index) => {
-    const children =
-      getCategoryChildren(selectedCategory);
-
-    if (children.length > 0) {
-      categoryLevels.push({
-        title:
-          index === 0
-            ? "Child Category"
-            : `Sub Category Level ${index + 1}`,
-        description: `Select a category inside ${selectedCategory.name}`,
-        categories: children,
-        selectedId: categoryPath[index + 1]?.id,
-      });
-    }
-  });
-
-  return (
-    <div className="space-y-3 sm:col-span-2">
-      {categoryLevels.map((level, levelIndex) => (
-        <div
-          key={`category-level-${levelIndex}`}
-          className="rounded-xl border bg-muted/20 p-4"
-        >
-          <div className="mb-3 flex items-center gap-2.5">
-            <div
-              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${accent.solid}`}
-            >
-              {levelIndex + 1}
-            </div>
-
-            <div className="min-w-0">
-              <p className="text-sm font-semibold">
-                {level.title}
-              </p>
-
-              <p className="truncate text-xs text-muted-foreground">
-                {level.description}
-              </p>
-            </div>
-          </div>
-
-          <Select
-            value={
-              level.selectedId
-                ? String(level.selectedId)
-                : "none"
-            }
-            onValueChange={(value) =>
-              handleCategoryLevelChange(
-                levelIndex,
-                value
-              )
-            }
-            disabled={
-              loadingCategories ||
-              level.categories.length === 0
-            }
+    return (
+      <div className="space-y-3 sm:col-span-2">
+        {categoryLevels.map((level, levelIndex) => (
+          <div
+            key={`category-level-${levelIndex}`}
+            className="rounded-xl border bg-muted/20 p-4"
           >
-            <SelectTrigger className="h-11 bg-background">
-              <SelectValue
-                placeholder={`Select ${level.title.toLowerCase()}`}
-              />
-            </SelectTrigger>
+            <div className="mb-3 flex items-center gap-2.5">
+              <div
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${accent.solid}`}
+              >
+                {levelIndex + 1}
+              </div>
 
-            <SelectContent className="max-h-[320px]">
-              <SelectItem value="none">
-                Select {level.title.toLowerCase()}
-              </SelectItem>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold">
+                  {level.title}
+                </p>
 
-              {level.categories.map((category) => {
-                const children =
-                  getCategoryChildren(category);
+                <p className="truncate text-xs text-muted-foreground">
+                  {level.description}
+                </p>
+              </div>
+            </div>
 
-                return (
-                  <SelectItem
-                    key={`${levelIndex}-${category.id}`}
-                    value={String(category.id)}
-                  >
-                    <span className="flex items-center gap-2">
-                      <FolderTree
-                        size={14}
-                        className={accent.icon}
-                      />
-
-                      <span>{category.name}</span>
-
-                      {children.length > 0 && (
-                        <span className="text-xs text-muted-foreground">
-                          ({children.length} sub)
-                        </span>
-                      )}
-                    </span>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-        </div>
-      ))}
-
-      {categoryPath.length > 0 && (
-        <div
-          className={`rounded-xl border p-4 ${accent.border} ${accent.chip}`}
-        >
-          <p className="text-xs font-medium text-muted-foreground">
-            Final Product Category
-          </p>
-
-          <p className="mt-1 text-sm font-semibold">
-            {categoryPath
-              .map((category) => category.name)
-              .join(" → ")}
-          </p>
-
-          <div className="mt-3 inline-flex rounded-lg bg-background px-3 py-2 text-xs">
-            <span className="text-muted-foreground">
-              Final Category ID:&nbsp;
-            </span>
-
-            <span className="font-semibold">
-              {
-                categoryPath[
-                  categoryPath.length - 1
-                ]?.id
+            <Select
+              value={
+                level.selectedId
+                  ? String(level.selectedId)
+                  : "none"
               }
-            </span>
-          </div>
-        </div>
-      )}
+              onValueChange={(value) =>
+                handleCategoryLevelChange(
+                  levelIndex,
+                  value
+                )
+              }
+              disabled={
+                loadingCategories ||
+                level.categories.length === 0
+              }
+            >
+              <SelectTrigger className="h-11 bg-background">
+                <SelectValue
+                  placeholder={`Select ${level.title.toLowerCase()}`}
+                />
+              </SelectTrigger>
 
-      <FieldError
-        message={
-          errors.categoryId ||
-          errors.parentCategoryId
-        }
-      />
-    </div>
-  );
-}
+              <SelectContent className="max-h-[320px]">
+                <SelectItem value="none">
+                  Select {level.title.toLowerCase()}
+                </SelectItem>
+
+                {level.categories.map((category) => {
+                  const children =
+                    getCategoryChildren(category);
+
+                  return (
+                    <SelectItem
+                      key={`${levelIndex}-${category.id}`}
+                      value={String(category.id)}
+                    >
+                      <span className="flex items-center gap-2">
+                        <FolderTree
+                          size={14}
+                          className={accent.icon}
+                        />
+
+                        <span>{category.name}</span>
+
+                        {children.length > 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            ({children.length} sub)
+                          </span>
+                        )}
+                      </span>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+        ))}
+
+        {categoryPath.length > 0 && (
+          <div
+            className={`rounded-xl border p-4 ${accent.border} ${accent.chip}`}
+          >
+            <p className="text-xs font-medium text-muted-foreground">
+              Final Product Category
+            </p>
+
+            <p className="mt-1 text-sm font-semibold">
+              {categoryPath
+                .map((category) => category.name)
+                .join(" → ")}
+            </p>
+
+            <div className="mt-3 inline-flex rounded-lg bg-background px-3 py-2 text-xs">
+              <span className="text-muted-foreground">
+                Final Category ID:&nbsp;
+              </span>
+
+              <span className="font-semibold">
+                {
+                  categoryPath[
+                    categoryPath.length - 1
+                  ]?.id
+                }
+              </span>
+            </div>
+          </div>
+        )}
+
+        <FieldError
+          message={
+            errors.categoryId ||
+            errors.parentCategoryId
+          }
+        />
+      </div>
+    );
+  }
 
   function renderBasicInfo() {
     const accent = getStepAccent(1);
@@ -3521,7 +3476,7 @@ function renderCategorySelection() {
   function renderImages() {
     const accent = getStepAccent(2);
 
-   const featuredPreview = getImagePreview(form.featuredimg);
+    const featuredPreview = getImagePreview(form.featuredimg);
 
     return (
       <div className="space-y-6">
@@ -3581,7 +3536,7 @@ function renderCategorySelection() {
 
                 <input
                   type="file"
-                  accept="image/*"
+                   accept=".webp,image/webp"
                   className="hidden"
                   onChange={
                     handleFeaturedImage
@@ -3599,7 +3554,7 @@ function renderCategorySelection() {
 
               <input
                 type="file"
-                accept="image/*"
+                 accept=".webp,image/webp"
                 className="hidden"
                 onChange={
                   handleFeaturedImage
@@ -3627,7 +3582,7 @@ function renderCategorySelection() {
 
               <input
                 type="file"
-                accept="image/*"
+                 accept=".webp,image/webp"
                 multiple
                 className="hidden"
                 onChange={
@@ -3637,44 +3592,44 @@ function renderCategorySelection() {
             </label>
           </div>
 
-         {form.images?.length > 0 ? (
-  <DndContext
-    sensors={sensors}
-    collisionDetection={closestCenter}
-    onDragEnd={handleGalleryDragEnd}
-  >
- <SortableContext
-  items={form.images.map((image) => image.id)}
-  strategy={rectSortingStrategy}
->
-  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-    {form.images.map((image, index) => (
-      <SortableGalleryImage
-        key={image.id}
-        image={image}
-        index={index}
-        preview={getImagePreview(image)}
-        removeGalleryImage={removeGalleryImage}
-      />
-    ))}
-  </div>
-</SortableContext>
-  </DndContext>
-) : (
-  <div
-    className={`flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed p-10 text-center ${accent.icon}`}
-  >
-    <Images size={28} />
+          {form.images?.length > 0 ? (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleGalleryDragEnd}
+            >
+              <SortableContext
+                items={form.images.map((image) => image.id)}
+                strategy={rectSortingStrategy}
+              >
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                  {form.images.map((image, index) => (
+                    <SortableGalleryImage
+                      key={image.id}
+                      image={image}
+                      index={index}
+                      preview={getImagePreview(image)}
+                      removeGalleryImage={removeGalleryImage}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          ) : (
+            <div
+              className={`flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed p-10 text-center ${accent.icon}`}
+            >
+              <Images size={28} />
 
-    <p className="text-sm font-medium text-foreground">
-      No gallery images yet
-    </p>
+              <p className="text-sm font-medium text-foreground">
+                No gallery images yet
+              </p>
 
-    <p className="text-xs text-muted-foreground">
-      Use "Add Images" above to upload a few.
-    </p>
-  </div>
-)}
+              <p className="text-xs text-muted-foreground">
+                Use "Add Images" above to upload a few.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -3692,19 +3647,6 @@ function renderCategorySelection() {
             title="Product Variants"
             description="Configure pricing, stock, dimensions, attributes and images."
           />
-
-          <Button
-            type="button"
-            variant="outline"
-            onClick={addVariant}
-            className="w-full shrink-0 sm:w-auto"
-          >
-            <Plus
-              size={16}
-              className="mr-2"
-            />
-            Add Variant
-          </Button>
         </div>
 
         {renderErrorSummary()}
@@ -3941,8 +3883,8 @@ function renderCategorySelection() {
                               !selectedAttribute
                             }
                             className={`${attributeUnit
-                                ? "pr-16"
-                                : ""
+                              ? "pr-16"
+                              : ""
                               } ${variantErrors.attributeValue
                                 ? "border-red-400"
                                 : ""
@@ -4080,19 +4022,18 @@ function renderCategorySelection() {
                         />
                       </div>
 
-                   <div className="grid gap-2">
-  <label>Weight (in kg)</label>
-  <Input
-    type="number" // NAYA — sirf numbers accept karega
-    step="0.01"   // NAYA — decimal values allow karega (0.15, 0.5, etc.)
-    min="0"       // NAYA — negative values block karega
-    value={variant.weight ?? ""}
-    onChange={(event) =>
-      handleVariantChange(index, "weight", event.target.value)
-    }
-    placeholder="0.1"
-  />
-</div>
+                      <div className="grid gap-2">
+                        <label>Weight (in kg)</label>
+                        <Input
+                          type="number"
+                          step="0.01"  
+                          value={variant.weight ?? ""}
+                          onChange={(event) =>
+                            handleVariantChange(index, "weight", event.target.value)
+                          }
+                          placeholder="0.1"
+                        />
+                      </div>
                     </div>
 
                     {selectedAttribute && (
@@ -4270,7 +4211,7 @@ function renderCategorySelection() {
 
                           <input
                             type="file"
-                            accept="image/*"
+                            accept=".webp,image/webp"
                             className="hidden"
                             onChange={(
                               event
@@ -4290,772 +4231,783 @@ function renderCategorySelection() {
             }
           )}
         </div>
+        <div className="flex w-full justify-end">
+  <Button
+    type="button"
+    variant="outline"
+    onClick={addVariant}
+    className="w-full shrink-0 bg-red-600 text-white sm:w-auto"
+  >
+    <Plus size={16} className="mr-2" />
+    Add Variant
+  </Button>
+</div>
       </div>
     );
   }
 
   function renderDetails() {
-  const accent = getStepAccent(4);
+    const accent = getStepAccent(4);
 
-  const fields = [
-    [
-      "keyBenefits",
-      "Key Benefits",
-      "Add product benefits.",
-    ],
-    [
-      "howToUse",
-      "How To Use",
-      "Add usage instructions.",
-    ],
-    [
-      "safetyInformation",
-      "Safety Information",
-      "Add safety instructions.",
-    ],
-    [
-      "whatToAvoid",
-      "What To Avoid",
-      "Add things customers should avoid.",
-    ],
-    [
-      "whoShouldUse",
-      "Who Should Use",
-      "Describe the ideal customer.",
-    ],
-    [
-      "whychooseus",
-      "Why Choose Us",
-      "Add reasons to choose this product.",
-    ],
-  ];
+    const fields = [
+      [
+        "keyBenefits",
+        "Key Benefits",
+        "Add product benefits.",
+      ],
+      [
+        "howToUse",
+        "How To Use",
+        "Add usage instructions.",
+      ],
+      [
+        "safetyInformation",
+        "Safety Information",
+        "Add safety instructions.",
+      ],
+      [
+        "whatToAvoid",
+        "What To Avoid",
+        "Add things customers should avoid.",
+      ],
+      [
+        "whoShouldUse",
+        "Who Should Use",
+        "Describe the ideal customer.",
+      ],
+      [
+        "whychooseus",
+        "Why Choose Us",
+        "Add reasons to choose this product.",
+      ],
+    ];
 
-  return (
-    <div className="space-y-6">
-      <SectionHeading
-        icon={FileText}
-        accent={accent}
-        title="Product Details"
-        description="Add detailed information about your product."
-      />
+    return (
+      <div className="space-y-6">
+        <SectionHeading
+          icon={FileText}
+          accent={accent}
+          title="Product Details"
+          description="Add detailed information about your product."
+        />
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        {fields.map(
-          ([field, label, description]) => (
-            <div
-              key={field}
-              className="rounded-xl border bg-muted/20 p-4 sm:p-5"
-            >
-              <div className="mb-4 flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-semibold">
-                    {label}
-                  </p>
+        <div className="grid gap-5 lg:grid-cols-2">
+          {fields.map(
+            ([field, label, description]) => (
+              <div
+                key={field}
+                className="rounded-xl border bg-muted/20 p-4 sm:p-5"
+              >
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold">
+                      {label}
+                    </p>
 
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {description}
-                  </p>
-                </div>
-
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    addArrayItem(field)
-                  }
-                  className="shrink-0"
-                >
-                  <Plus
-                    size={14}
-                    className="mr-1.5"
-                  />
-                  Add
-                </Button>
-              </div>
-
-              <div className="mb-4 space-y-2 rounded-lg border border-dashed bg-background p-3">
-                <Textarea
-                  value={bulkDetailInputs[field] || ""}
-                  onChange={(event) =>
-                    setBulkDetailInputs((previous) => ({
-                      ...previous,
-                      [field]: event.target.value,
-                    }))
-                  }
-                  placeholder={`Paste multiple ${label.toLowerCase()} here, one point per line...`}
-                  rows={3}
-                  className="min-h-[70px] resize-y text-xs"
-                />
-
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  disabled={!(bulkDetailInputs[field] || "").trim()}
-                  onClick={() => {
-                    addBulkArrayItems(
-                      field,
-                      bulkDetailInputs[field] || ""
-                    );
-
-                    setBulkDetailInputs((previous) => ({
-                      ...previous,
-                      [field]: "",
-                    }));
-                  }}
-                >
-                  <Plus size={14} className="mr-1.5" />
-                  Add all as points
-                </Button>
-              </div>
-
-              <div className="space-y-3">
-                {(form[field] || []).length ===
-                0 ? (
-                  <div className="rounded-lg border border-dashed bg-background p-5 text-center">
-                    <p className="text-xs text-muted-foreground">
-                      No {label.toLowerCase()} added yet.
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {description}
                     </p>
                   </div>
-                ) : (
-                  (form[field] || []).map(
-                    (value, index) => (
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      addArrayItem(field)
+                    }
+                    className="shrink-0"
+                  >
+                    <Plus
+                      size={14}
+                      className="mr-1.5"
+                    />
+                    Add
+                  </Button>
+                </div>
+
+                <div className="mb-4 space-y-2 rounded-lg border border-dashed bg-background p-3">
+                  <Textarea
+                    value={bulkDetailInputs[field] || ""}
+                    onChange={(event) =>
+                      setBulkDetailInputs((previous) => ({
+                        ...previous,
+                        [field]: event.target.value,
+                      }))
+                    }
+                    placeholder={`Paste multiple ${label.toLowerCase()} here, one point per line...`}
+                    rows={3}
+                    className="min-h-[70px] resize-y text-xs"
+                  />
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    disabled={!(bulkDetailInputs[field] || "").trim()}
+                    onClick={() => {
+                      addBulkArrayItems(
+                        field,
+                        bulkDetailInputs[field] || ""
+                      );
+
+                      setBulkDetailInputs((previous) => ({
+                        ...previous,
+                        [field]: "",
+                      }));
+                    }}
+                  >
+                    <Plus size={14} className="mr-1.5" />
+                    Add all as points
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  {(form[field] || []).length ===
+                    0 ? (
+                    <div className="rounded-lg border border-dashed bg-background p-5 text-center">
+                      <p className="text-xs text-muted-foreground">
+                        No {label.toLowerCase()} added yet.
+                      </p>
+                    </div>
+                  ) : (
+                    (form[field] || []).map(
+                      (value, index) => (
+                        <div
+                          key={`${field}-${index}`}
+                          className="flex items-start gap-2"
+                        >
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-background text-muted-foreground">
+                            <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                          </div>
+
+                          <Textarea
+                            value={value ?? ""}
+                            onChange={(event) =>
+                              handleArrayChange(
+                                field,
+                                index,
+                                event.target.value
+                              )
+                            }
+                            placeholder={`Enter ${label.toLowerCase()}...`}
+                            rows={3}
+                            className="min-h-[80px] resize-y bg-background"
+                          />
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              removeArrayItem(
+                                field,
+                                index
+                              )
+                            }
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border bg-background text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+                            aria-label={`Remove ${label} ${index + 1}`}
+                          >
+                            <X size={15} />
+                          </button>
+                        </div>
+                      )
+                    )
+                  )}
+                </div>
+              </div>
+            )
+          )}
+        </div>
+
+        <div className="rounded-2xl border bg-muted/20 p-4 sm:p-5 lg:p-6">
+          <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <div
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${accent.chip}`}
+              >
+                <Tag size={19} className={accent.icon} />
+              </div>
+
+              <div className="min-w-0">
+                <h4 className="text-lg font-semibold">Tags</h4>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Add and manage tags for this product.
+                </p>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              onClick={() => {
+                setForm((previous) => ({
+                  ...previous,
+                  tags: [
+                    ...(Array.isArray(previous.tags)
+                      ? previous.tags
+                      : []),
+                    {
+                      name: "",
+                      slug: "",
+                    },
+                  ],
+                }));
+              }}
+              className="w-full shrink-0 sm:w-auto"
+            >
+              <Plus size={16} className="mr-2" />
+              Add Tag
+            </Button>
+          </div>
+
+          {/* Empty State */}
+          {(!Array.isArray(form.tags) || form.tags.length === 0) && (
+            <div className="rounded-xl border-2 border-dashed bg-background p-8 text-center">
+              <div
+                className={`mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full ${accent.chip}`}
+              >
+                <Tag size={22} className={accent.icon} />
+              </div>
+
+              <p className="text-sm font-semibold">
+                No Tags Added Yet
+              </p>
+
+              <p className="mt-1 text-xs text-muted-foreground">
+                Add tags to organize your product and improve
+                discoverability.
+              </p>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setForm((previous) => ({
+                    ...previous,
+                    tags: [
+                      ...(Array.isArray(previous.tags)
+                        ? previous.tags
+                        : []),
+                      {
+                        name: "",
+                        slug: "",
+                      },
+                    ],
+                  }));
+                }}
+                className="mt-4"
+              >
+                <Plus size={15} className="mr-2" />
+                Add Your First Tag
+              </Button>
+            </div>
+          )}
+
+          {/* Tags List */}
+          {Array.isArray(form.tags) && form.tags.length > 0 && (
+            <div className="space-y-4">
+              <div className="rounded-xl border bg-background p-4 sm:p-5">
+                {/* List Header */}
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">
+                      Product Tags
+                    </p>
+
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Manage tag names and their slugs.
+                    </p>
+                  </div>
+
+                  <span className="w-fit shrink-0 rounded-full border bg-muted px-3 py-1 text-xs font-medium">
+                    {form.tags.length}{" "}
+                    {form.tags.length === 1 ? "Tag" : "Tags"}
+                  </span>
+                </div>
+
+                {/* Tags */}
+                <div className="space-y-3">
+                  {form.tags.map((tag, index) => {
+                    const tagName =
+                      typeof tag === "string"
+                        ? tag
+                        : tag?.name || "";
+
+                    const tagSlug =
+                      typeof tag === "string"
+                        ? tag
+                          .toLowerCase()
+                          .trim()
+                          .replace(/[^a-z0-9]+/g, "-")
+                          .replace(/^-+|-+$/g, "")
+                        : tag?.slug || "";
+
+                    return (
                       <div
-                        key={`${field}-${index}`}
-                        className="flex items-start gap-2"
+                        key={
+                          tag?.id
+                            ? `tag-${tag.id}`
+                            : `tag-new-${index}`
+                        }
+                        className="rounded-xl border bg-muted/20 p-4"
                       >
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-background text-muted-foreground">
-                          <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                        {/* Tag Header */}
+                        <div className="mb-4 flex items-center justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div
+                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${accent.chip}`}
+                            >
+                              <Tag
+                                size={16}
+                                className={accent.icon}
+                              />
+                            </div>
+
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold">
+                                Tag {index + 1}
+                              </p>
+
+                              {tag?.id && (
+                                <p className="text-xs text-muted-foreground">
+                                  ID: {tag.id}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setForm((previous) => ({
+                                ...previous,
+                                tags: (
+                                  Array.isArray(previous.tags)
+                                    ? previous.tags
+                                    : []
+                                ).filter(
+                                  (_, tagIndex) =>
+                                    tagIndex !== index
+                                ),
+                              }));
+                            }}
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+                            aria-label={`Remove tag ${index + 1}`}
+                          >
+                            <X size={16} />
+                          </button>
                         </div>
 
-                        <Textarea
-                          value={value ?? ""}
-                          onChange={(event) =>
-                            handleArrayChange(
-                              field,
-                              index,
-                              event.target.value
-                            )
-                          }
-                          placeholder={`Enter ${label.toLowerCase()}...`}
-                          rows={3}
-                          className="min-h-[80px] resize-y bg-background"
-                        />
+                        {/* Name + Slug */}
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {/* Name */}
+                          <div className="grid gap-2">
+                            <Label>
+                              Name
+                              <span className="ml-1 text-red-500">
+                                *
+                              </span>
+                            </Label>
+
+                            <Input
+                              value={tagName}
+                              onChange={(event) => {
+                                const value =
+                                  event.target.value;
+
+                                setForm((previous) => {
+                                  const tags = Array.isArray(
+                                    previous.tags
+                                  )
+                                    ? [...previous.tags]
+                                    : [];
+
+                                  const currentTag =
+                                    tags[index];
+
+                                  const generatedSlug =
+                                    value
+                                      .toLowerCase()
+                                      .trim()
+                                      .replace(
+                                        /[^a-z0-9]+/g,
+                                        "-"
+                                      )
+                                      .replace(
+                                        /^-+|-+$/g,
+                                        ""
+                                      );
+
+                                  tags[index] = {
+                                    ...(typeof currentTag ===
+                                      "object"
+                                      ? currentTag
+                                      : {}),
+                                    name: value,
+                                    slug:
+                                      currentTag?.slug &&
+                                        currentTag.slug !==
+                                        tagSlug
+                                        ? currentTag.slug
+                                        : generatedSlug,
+                                  };
+
+                                  return {
+                                    ...previous,
+                                    tags,
+                                  };
+                                });
+                              }}
+                              placeholder="e.g. Protein"
+                              className="h-11 bg-background"
+                            />
+                          </div>
+
+                          {/* Slug */}
+                          <div className="grid gap-2">
+                            <Label>Slug</Label>
+
+                            <Input
+                              value={tagSlug}
+                              onChange={(event) => {
+                                const value =
+                                  event.target.value
+                                    .toLowerCase()
+                                    .trim()
+                                    .replace(
+                                      /[^a-z0-9]+/g,
+                                      "-"
+                                    )
+                                    .replace(
+                                      /^-+|-+$/g,
+                                      ""
+                                    );
+
+                                setForm((previous) => {
+                                  const tags = Array.isArray(
+                                    previous.tags
+                                  )
+                                    ? [...previous.tags]
+                                    : [];
+
+                                  tags[index] = {
+                                    ...(typeof tags[index] ===
+                                      "object"
+                                      ? tags[index]
+                                      : {}),
+                                    name: tagName,
+                                    slug: value,
+                                  };
+
+                                  return {
+                                    ...previous,
+                                    tags,
+                                  };
+                                });
+                              }}
+                              placeholder="protein"
+                              className="h-11 bg-background"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Created At */}
+                        {tag?.createdAt && (
+                          <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+                            <span className="font-medium">
+                              Created:
+                            </span>
+
+                            <span>
+                              {new Date(
+                                tag.createdAt
+                              ).toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Preview */}
+                        {tagName.trim() && (
+                          <div className="mt-4 rounded-xl border bg-background p-4">
+                            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              Preview
+                            </p>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span
+                                className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium ${accent.chip}`}
+                              >
+                                <Tag
+                                  size={12}
+                                  className="mr-1.5"
+                                />
+                                {tagName}
+                              </span>
+
+                              {tagSlug && (
+                                <span className="rounded-full border bg-muted px-3 py-1.5 text-xs text-muted-foreground">
+                                  /{tagSlug}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-2xl border bg-muted/20 p-4 sm:p-5 lg:p-6">
+          <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <div
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${accent.chip}`}
+              >
+                <MessageCircle
+                  size={19}
+                  className={accent.icon}
+                />
+              </div>
+
+              <div className="min-w-0">
+                <h4 className="text-lg font-semibold">
+                  Frequently Asked Questions
+                </h4>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Add common customer questions and their answers.
+                </p>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              onClick={() => {
+                setForm((previous) => ({
+                  ...previous,
+                  faqs: [
+                    ...(previous.faqs || []),
+                    {
+                      question: "",
+                      answer: "",
+                    },
+                  ],
+                }));
+              }}
+              className="w-full shrink-0 sm:w-auto"
+            >
+              <Plus
+                size={16}
+                className="mr-2"
+              />
+              Add Question
+            </Button>
+          </div>
+
+          {(!form.faqs ||
+            form.faqs.length === 0) && (
+              <div className="rounded-xl border-2 border-dashed bg-background p-8 text-center">
+                <div
+                  className={`mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full ${accent.chip}`}
+                >
+                  <MessageCircle
+                    size={22}
+                    className={accent.icon}
+                  />
+                </div>
+
+                <p className="text-sm font-semibold">
+                  No FAQs added yet
+                </p>
+
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Click "Add Question" to create your first FAQ.
+                </p>
+              </div>
+            )}
+
+          {Array.isArray(form.faqs) &&
+            form.faqs.length > 0 && (
+              <div className="space-y-4">
+                {form.faqs.map(
+                  (faq, index) => (
+                    <div
+                      key={
+                        faq?.id
+                          ? `faq-${faq.id}`
+                          : `faq-new-${index}`
+                      }
+                      className="rounded-xl border bg-background p-4 sm:p-5"
+                    >
+                      <div className="mb-4 flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${accent.solid}`}
+                          >
+                            {index + 1}
+                          </div>
+
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold">
+                              Question {index + 1}
+                            </p>
+
+                            <p className="text-xs text-muted-foreground">
+                              Add a customer question and answer.
+                            </p>
+                          </div>
+                        </div>
 
                         <button
                           type="button"
-                          onClick={() =>
-                            removeArrayItem(
-                              field,
-                              index
-                            )
-                          }
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border bg-background text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
-                          aria-label={`Remove ${label} ${index + 1}`}
+                          onClick={() => {
+                            setForm((previous) => ({
+                              ...previous,
+                              faqs: (
+                                previous.faqs ||
+                                []
+                              ).filter(
+                                (_, faqIndex) =>
+                                  faqIndex !==
+                                  index
+                              ),
+                            }));
+                          }}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+                          aria-label={`Remove question ${index + 1}`}
                         >
-                          <X size={15} />
+                          <X size={16} />
                         </button>
                       </div>
-                    )
+
+                      <div className="grid gap-2">
+                        <Label>
+                          Question
+                          <span className="ml-1 text-red-500">
+                            *
+                          </span>
+                        </Label>
+
+                        <Input
+                          value={
+                            faq?.question ||
+                            ""
+                          }
+                          onChange={(event) => {
+                            const value =
+                              event.target
+                                .value;
+
+                            setForm(
+                              (previous) => {
+                                const faqs = [
+                                  ...(previous.faqs ||
+                                    []),
+                                ];
+
+                                faqs[index] = {
+                                  ...faqs[
+                                  index
+                                  ],
+                                  question:
+                                    value,
+                                };
+
+                                return {
+                                  ...previous,
+                                  faqs,
+                                };
+                              }
+                            );
+                          }}
+                          placeholder="e.g. What are the key benefits of this product?"
+                          className="h-11"
+                        />
+                      </div>
+
+                      <div className="mt-4 grid gap-2">
+                        <Label>
+                          Answer
+                          <span className="ml-1 text-red-500">
+                            *
+                          </span>
+                        </Label>
+
+                        <Textarea
+                          value={
+                            faq?.answer ||
+                            ""
+                          }
+                          onChange={(event) => {
+                            const value =
+                              event.target
+                                .value;
+
+                            setForm(
+                              (previous) => {
+                                const faqs = [
+                                  ...(previous.faqs ||
+                                    []),
+                                ];
+
+                                faqs[index] = {
+                                  ...faqs[
+                                  index
+                                  ],
+                                  answer:
+                                    value,
+                                };
+
+                                return {
+                                  ...previous,
+                                  faqs,
+                                };
+                              }
+                            );
+                          }}
+                          placeholder="Write a clear and helpful answer..."
+                          rows={5}
+                          className="min-h-[120px] resize-y"
+                        />
+                      </div>
+                      {(faq?.question ||
+                        faq?.answer) && (
+                          <div className="mt-4 rounded-xl border bg-muted/30 p-4">
+                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              Preview
+                            </p>
+
+                            {faq?.question && (
+                              <p className="text-sm font-semibold">
+                                Q.{" "}
+                                {
+                                  faq.question
+                                }
+                              </p>
+                            )}
+
+                            {faq?.answer && (
+                              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+                                A.{" "}
+                                {
+                                  faq.answer
+                                }
+                              </p>
+                            )}
+                          </div>
+                        )}
+                    </div>
                   )
                 )}
               </div>
-            </div>
-          )
-        )}
-      </div>
-
-<div className="rounded-2xl border bg-muted/20 p-4 sm:p-5 lg:p-6">
-  <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-    <div className="flex min-w-0 items-start gap-3">
-      <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${accent.chip}`}
-      >
-        <Tag size={19} className={accent.icon} />
-      </div>
-
-      <div className="min-w-0">
-        <h4 className="text-lg font-semibold">Tags</h4>
-
-        <p className="mt-1 text-sm text-muted-foreground">
-          Add and manage tags for this product.
-        </p>
-      </div>
-    </div>
-
-    <Button
-      type="button"
-      onClick={() => {
-        setForm((previous) => ({
-          ...previous,
-          tags: [
-            ...(Array.isArray(previous.tags)
-              ? previous.tags
-              : []),
-            {
-              name: "",
-              slug: "",
-            },
-          ],
-        }));
-      }}
-      className="w-full shrink-0 sm:w-auto"
-    >
-      <Plus size={16} className="mr-2" />
-      Add Tag
-    </Button>
-  </div>
-
-  {/* Empty State */}
-  {(!Array.isArray(form.tags) || form.tags.length === 0) && (
-    <div className="rounded-xl border-2 border-dashed bg-background p-8 text-center">
-      <div
-        className={`mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full ${accent.chip}`}
-      >
-        <Tag size={22} className={accent.icon} />
-      </div>
-
-      <p className="text-sm font-semibold">
-        No Tags Added Yet
-      </p>
-
-      <p className="mt-1 text-xs text-muted-foreground">
-        Add tags to organize your product and improve
-        discoverability.
-      </p>
-
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => {
-          setForm((previous) => ({
-            ...previous,
-            tags: [
-              ...(Array.isArray(previous.tags)
-                ? previous.tags
-                : []),
-              {
-                name: "",
-                slug: "",
-              },
-            ],
-          }));
-        }}
-        className="mt-4"
-      >
-        <Plus size={15} className="mr-2" />
-        Add Your First Tag
-      </Button>
-    </div>
-  )}
-
-  {/* Tags List */}
-  {Array.isArray(form.tags) && form.tags.length > 0 && (
-    <div className="space-y-4">
-      <div className="rounded-xl border bg-background p-4 sm:p-5">
-        {/* List Header */}
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-semibold">
-              Product Tags
-            </p>
-
-            <p className="mt-1 text-xs text-muted-foreground">
-              Manage tag names and their slugs.
-            </p>
-          </div>
-
-          <span className="w-fit shrink-0 rounded-full border bg-muted px-3 py-1 text-xs font-medium">
-            {form.tags.length}{" "}
-            {form.tags.length === 1 ? "Tag" : "Tags"}
-          </span>
-        </div>
-
-        {/* Tags */}
-        <div className="space-y-3">
-          {form.tags.map((tag, index) => {
-            const tagName =
-              typeof tag === "string"
-                ? tag
-                : tag?.name || "";
-
-            const tagSlug =
-              typeof tag === "string"
-                ? tag
-                    .toLowerCase()
-                    .trim()
-                    .replace(/[^a-z0-9]+/g, "-")
-                    .replace(/^-+|-+$/g, "")
-                : tag?.slug || "";
-
-            return (
-              <div
-                key={
-                  tag?.id
-                    ? `tag-${tag.id}`
-                    : `tag-new-${index}`
-                }
-                className="rounded-xl border bg-muted/20 p-4"
-              >
-                {/* Tag Header */}
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${accent.chip}`}
-                    >
-                      <Tag
-                        size={16}
-                        className={accent.icon}
-                      />
-                    </div>
-
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold">
-                        Tag {index + 1}
-                      </p>
-
-                      {tag?.id && (
-                        <p className="text-xs text-muted-foreground">
-                          ID: {tag.id}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setForm((previous) => ({
-                        ...previous,
-                        tags: (
-                          Array.isArray(previous.tags)
-                            ? previous.tags
-                            : []
-                        ).filter(
-                          (_, tagIndex) =>
-                            tagIndex !== index
-                        ),
-                      }));
-                    }}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
-                    aria-label={`Remove tag ${index + 1}`}
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-
-                {/* Name + Slug */}
-                <div className="grid gap-4 md:grid-cols-2">
-                  {/* Name */}
-                  <div className="grid gap-2">
-                    <Label>
-                      Name
-                      <span className="ml-1 text-red-500">
-                        *
-                      </span>
-                    </Label>
-
-                    <Input
-                      value={tagName}
-                      onChange={(event) => {
-                        const value =
-                          event.target.value;
-
-                        setForm((previous) => {
-                          const tags = Array.isArray(
-                            previous.tags
-                          )
-                            ? [...previous.tags]
-                            : [];
-
-                          const currentTag =
-                            tags[index];
-
-                          const generatedSlug =
-                            value
-                              .toLowerCase()
-                              .trim()
-                              .replace(
-                                /[^a-z0-9]+/g,
-                                "-"
-                              )
-                              .replace(
-                                /^-+|-+$/g,
-                                ""
-                              );
-
-                          tags[index] = {
-                            ...(typeof currentTag ===
-                            "object"
-                              ? currentTag
-                              : {}),
-                            name: value,
-                            slug:
-                              currentTag?.slug &&
-                              currentTag.slug !==
-                                tagSlug
-                                ? currentTag.slug
-                                : generatedSlug,
-                          };
-
-                          return {
-                            ...previous,
-                            tags,
-                          };
-                        });
-                      }}
-                      placeholder="e.g. Protein"
-                      className="h-11 bg-background"
-                    />
-                  </div>
-
-                  {/* Slug */}
-                  <div className="grid gap-2">
-                    <Label>Slug</Label>
-
-                    <Input
-                      value={tagSlug}
-                      onChange={(event) => {
-                        const value =
-                          event.target.value
-                            .toLowerCase()
-                            .trim()
-                            .replace(
-                              /[^a-z0-9]+/g,
-                              "-"
-                            )
-                            .replace(
-                              /^-+|-+$/g,
-                              ""
-                            );
-
-                        setForm((previous) => {
-                          const tags = Array.isArray(
-                            previous.tags
-                          )
-                            ? [...previous.tags]
-                            : [];
-
-                          tags[index] = {
-                            ...(typeof tags[index] ===
-                            "object"
-                              ? tags[index]
-                              : {}),
-                            name: tagName,
-                            slug: value,
-                          };
-
-                          return {
-                            ...previous,
-                            tags,
-                          };
-                        });
-                      }}
-                      placeholder="protein"
-                      className="h-11 bg-background"
-                    />
-                  </div>
-                </div>
-
-                {/* Created At */}
-                {tag?.createdAt && (
-                  <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="font-medium">
-                      Created:
-                    </span>
-
-                    <span>
-                      {new Date(
-                        tag.createdAt
-                      ).toLocaleString()}
-                    </span>
-                  </div>
-                )}
-
-                {/* Preview */}
-                {tagName.trim() && (
-                  <div className="mt-4 rounded-xl border bg-background p-4">
-                    <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Preview
-                    </p>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium ${accent.chip}`}
-                      >
-                        <Tag
-                          size={12}
-                          className="mr-1.5"
-                        />
-                        {tagName}
-                      </span>
-
-                      {tagSlug && (
-                        <span className="rounded-full border bg-muted px-3 py-1.5 text-xs text-muted-foreground">
-                          /{tagSlug}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+            )}
         </div>
       </div>
-    </div>
-  )}
-</div>
-
-      <div className="rounded-2xl border bg-muted/20 p-4 sm:p-5 lg:p-6">
-        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
-            <div
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${accent.chip}`}
-            >
-              <MessageCircle
-                size={19}
-                className={accent.icon}
-              />
-            </div>
-
-            <div className="min-w-0">
-              <h4 className="text-lg font-semibold">
-                Frequently Asked Questions
-              </h4>
-
-              <p className="mt-1 text-sm text-muted-foreground">
-                Add common customer questions and their answers.
-              </p>
-            </div>
-          </div>
-
-          <Button
-            type="button"
-            onClick={() => {
-              setForm((previous) => ({
-                ...previous,
-                faqs: [
-                  ...(previous.faqs || []),
-                  {
-                    question: "",
-                    answer: "",
-                  },
-                ],
-              }));
-            }}
-            className="w-full shrink-0 sm:w-auto"
-          >
-            <Plus
-              size={16}
-              className="mr-2"
-            />
-            Add Question
-          </Button>
-        </div>
-
-        {(!form.faqs ||
-          form.faqs.length === 0) && (
-          <div className="rounded-xl border-2 border-dashed bg-background p-8 text-center">
-            <div
-              className={`mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full ${accent.chip}`}
-            >
-              <MessageCircle
-                size={22}
-                className={accent.icon}
-              />
-            </div>
-
-            <p className="text-sm font-semibold">
-              No FAQs added yet
-            </p>
-
-            <p className="mt-1 text-xs text-muted-foreground">
-              Click "Add Question" to create your first FAQ.
-            </p>
-          </div>
-        )}
-
-        {Array.isArray(form.faqs) &&
-          form.faqs.length > 0 && (
-            <div className="space-y-4">
-              {form.faqs.map(
-                (faq, index) => (
-                  <div
-                    key={
-                      faq?.id
-                        ? `faq-${faq.id}`
-                        : `faq-new-${index}`
-                    }
-                    className="rounded-xl border bg-background p-4 sm:p-5"
-                  >
-                    <div className="mb-4 flex items-center justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${accent.solid}`}
-                        >
-                          {index + 1}
-                        </div>
-
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold">
-                            Question {index + 1}
-                          </p>
-
-                          <p className="text-xs text-muted-foreground">
-                            Add a customer question and answer.
-                          </p>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setForm((previous) => ({
-                            ...previous,
-                            faqs: (
-                              previous.faqs ||
-                              []
-                            ).filter(
-                              (_, faqIndex) =>
-                                faqIndex !==
-                                index
-                            ),
-                          }));
-                        }}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
-                        aria-label={`Remove question ${index + 1}`}
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label>
-                        Question
-                        <span className="ml-1 text-red-500">
-                          *
-                        </span>
-                      </Label>
-
-                      <Input
-                        value={
-                          faq?.question ||
-                          ""
-                        }
-                        onChange={(event) => {
-                          const value =
-                            event.target
-                              .value;
-
-                          setForm(
-                            (previous) => {
-                              const faqs = [
-                                ...(previous.faqs ||
-                                  []),
-                              ];
-
-                              faqs[index] = {
-                                ...faqs[
-                                  index
-                                ],
-                                question:
-                                  value,
-                              };
-
-                              return {
-                                ...previous,
-                                faqs,
-                              };
-                            }
-                          );
-                        }}
-                        placeholder="e.g. What are the key benefits of this product?"
-                        className="h-11"
-                      />
-                    </div>
-
-                    <div className="mt-4 grid gap-2">
-                      <Label>
-                        Answer
-                        <span className="ml-1 text-red-500">
-                          *
-                        </span>
-                      </Label>
-
-                      <Textarea
-                        value={
-                          faq?.answer ||
-                          ""
-                        }
-                        onChange={(event) => {
-                          const value =
-                            event.target
-                              .value;
-
-                          setForm(
-                            (previous) => {
-                              const faqs = [
-                                ...(previous.faqs ||
-                                  []),
-                              ];
-
-                              faqs[index] = {
-                                ...faqs[
-                                  index
-                                ],
-                                answer:
-                                  value,
-                              };
-
-                              return {
-                                ...previous,
-                                faqs,
-                              };
-                            }
-                          );
-                        }}
-                        placeholder="Write a clear and helpful answer..."
-                        rows={5}
-                        className="min-h-[120px] resize-y"
-                      />
-                    </div>
-                    {(faq?.question ||
-                      faq?.answer) && (
-                      <div className="mt-4 rounded-xl border bg-muted/30 p-4">
-                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          Preview
-                        </p>
-
-                        {faq?.question && (
-                          <p className="text-sm font-semibold">
-                            Q.{" "}
-                            {
-                              faq.question
-                            }
-                          </p>
-                        )}
-
-                        {faq?.answer && (
-                          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
-                            A.{" "}
-                            {
-                              faq.answer
-                            }
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )
-              )}
-            </div>
-          )}
-      </div>
-    </div>
-  );
-}
+    );
+  }
   function renderSettings() {
     const accent = getStepAccent(5);
 
@@ -5108,84 +5060,79 @@ function renderCategorySelection() {
         />
 
         <div className="rounded-2xl border bg-muted/20 p-4 sm:p-5">
-  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-    <div className="flex min-w-0 items-center gap-3">
-      <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-          form.status === "active"
-            ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
-            : "bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400"
-        }`}
-      >
-        <Power size={19} />
-      </div>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <div
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${form.status === "active"
+                  ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
+                  : "bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400"
+                  }`}
+              >
+                <Power size={19} />
+              </div>
 
-      <div className="min-w-0">
-        <p className="font-semibold">
-          Product Status
-        </p>
+              <div className="min-w-0">
+                <p className="font-semibold">
+                  Product Status
+                </p>
 
-        <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-          Control whether this product is available on the storefront.
-        </p>
-      </div>
-    </div>
+                <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+                  Control whether this product is available on the storefront.
+                </p>
+              </div>
+            </div>
 
-    <button
-      type="button"
-      onClick={() =>
-        handleChange(
-          "status",
-          form.status === "active"
-            ? "inactive"
-            : "active"
-        )
-      }
-      className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all sm:w-auto ${
-        form.status === "active"
-          ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-950/70"
-          : "border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400 dark:hover:bg-red-950/70"
-      }`}
-      aria-label={`Set product ${
-        form.status === "active"
-          ? "inactive"
-          : "active"
-      }`}
-    >
-      {form.status === "active" ? (
-        <>
-          <CircleCheck size={17} />
-          Active
-        </>
-      ) : (
-        <>
-          <CircleX size={17} />
-          Inactive
-        </>
-      )}
-    </button>
-  </div>
+            <button
+              type="button"
+              onClick={() =>
+                handleChange(
+                  "status",
+                  form.status === "active"
+                    ? "inactive"
+                    : "active"
+                )
+              }
+              className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all sm:w-auto ${form.status === "active"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-950/70"
+                : "border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400 dark:hover:bg-red-950/70"
+                }`}
+              aria-label={`Set product ${form.status === "active"
+                ? "inactive"
+                : "active"
+                }`}
+            >
+              {form.status === "active" ? (
+                <>
+                  <CircleCheck size={17} />
+                  Active
+                </>
+              ) : (
+                <>
+                  <CircleX size={17} />
+                  Inactive
+                </>
+              )}
+            </button>
+          </div>
 
-  <div
-    className={`mt-4 flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs ${
-      form.status === "active"
-        ? "border-emerald-200 bg-emerald-50/70 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-400"
-        : "border-red-200 bg-red-50/70 text-red-700 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-400"
-    }`}
-  >
-    <span
-      className={`h-2 w-2 rounded-full ${
-        form.status === "active"
-          ? "bg-emerald-500"
-          : "bg-red-500"
-      }`}
-    />
+          <div
+            className={`mt-4 flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs ${form.status === "active"
+              ? "border-emerald-200 bg-emerald-50/70 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-400"
+              : "border-red-200 bg-red-50/70 text-red-700 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-400"
+              }`}
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${form.status === "active"
+                ? "bg-emerald-500"
+                : "bg-red-500"
+                }`}
+            />
 
-    {form.status === "active"
-      ? "This product is currently active and can be displayed to customers."
-      : "This product is inactive and should not be displayed to customers."}
-  </div>
-</div>
+            {form.status === "active"
+              ? "This product is currently active and can be displayed to customers."
+              : "This product is inactive and should not be displayed to customers."}
+          </div>
+        </div>
 
         <div className="grid gap-3">
           {switches.map(
@@ -6147,28 +6094,46 @@ function renderCategorySelection() {
     }
   }
 
+  const closeFromXRef = useRef(false);
+
+  const handleDialogOpenChange = (nextOpen) => {
+    if (nextOpen) {
+      onOpenChange(true);
+      return;
+    }
+
+    if (closeFromXRef.current) {
+      closeFromXRef.current = false;
+      onOpenChange(false);
+    }
+  };
+
   return (
     <Dialog
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleDialogOpenChange}
     >
       <DialogContent
+        close={() => {
+          closeFromXRef.current = true;
+          onOpenChange(false);
+        }}
         className="
-          flex
-          h-[100dvh]
-          max-h-[100dvh]
-          w-full
-          flex-col
-          gap-0
-          overflow-hidden
-          rounded-none
-          p-0
-          sm:h-[95vh]
-          sm:max-h-[95vh]
-          sm:w-[calc(100%-2rem)]
-          sm:max-w-6xl
-          sm:rounded-2xl
-        "
+      flex
+      h-[100dvh]
+      max-h-[100dvh]
+      w-full
+      flex-col
+      gap-0
+      overflow-hidden
+      rounded-none
+      p-0
+      sm:h-[95vh]
+      sm:max-h-[95vh]
+      sm:w-[calc(100%-2rem)]
+      sm:rounded-2xl
+      sm:max-w-6xl
+    "
       >
         <DialogHeader className="shrink-0 border-b bg-background px-4 py-4 sm:px-7 sm:py-5">
           <div className="flex items-start justify-between gap-4">
