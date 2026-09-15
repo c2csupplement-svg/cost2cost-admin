@@ -55,7 +55,7 @@ export default function PageSeoManager() {
 const loadPages = useCallback(async (selectAfter) => {
   setLoadingPages(true);
   try {
-    const res = await axios.get(`${API_URL}page-seo/dashboard/all`, {
+    const res = await axios.get(`${API_URL}/api/page-seo/dashboard/all`, {
       headers: getAuthHeaders(),
     });
     const list = res.data.pages || [];
@@ -105,9 +105,12 @@ useEffect(() => {
     e.preventDefault();
     setSaving(true);
     try {
-      await axios.put(`${API_URL}page-seo/${selectedPage}`, formData, {
-        headers: getAuthHeaders(),
-      });
+      // await axios.put(`${API_URL}/api/page-seo/${selectedPage}`, formData, {
+      //   headers: getAuthHeaders(),
+      // });
+      await axios.put(`${API_URL}/api/page-seo/${encodeURIComponent(selectedPage)}`, formData, {
+  headers: getAuthHeaders(),
+});
       showToast("success", "SEO settings saved successfully");
       await loadPages(selectedPage);
     } catch (err) {
@@ -127,7 +130,7 @@ useEffect(() => {
 
     try {
       const res = await axios.post(
-        `${API_URL}page-seo/dashboard/create`,
+        `${API_URL}/api/page-seo/dashboard/create`,
         { pageKey: newPageKey.trim(), pageLabel: newPageLabel.trim() },
         { headers: getAuthHeaders() }
       );
@@ -141,21 +144,22 @@ useEffect(() => {
     }
   };
 
-  const handleDeletePage = async (pageKey, e) => {
-    e.stopPropagation();
-    if (!confirm(`Delete SEO settings for "${pageKey}"? This cannot be undone.`)) return;
 
-    try {
-      await axios.delete(`${API_URL}page-seo/dashboard/${pageKey}`, {
-        headers: getAuthHeaders(),
-      });
-      showToast("success", "Page deleted");
-      if (selectedPage === pageKey) setSelectedPage(null);
-      await loadPages();
-    } catch (err) {
-      showToast("error", "Failed to delete page");
-    }
-  };
+const handleDeletePage = async (pageKey, e) => {
+  e.stopPropagation();
+  if (!confirm(`Delete SEO settings for "${pageKey}"? This cannot be undone.`)) return;
+
+  try {
+    await axios.delete(`${API_URL}/api/page-seo/dashboard/${encodeURIComponent(pageKey)}`, { 
+      headers: getAuthHeaders(),
+    });
+    showToast("success", "Page deleted");
+    if (selectedPage === pageKey) setSelectedPage(null);
+    await loadPages();
+  } catch (err) {
+    showToast("error", "Failed to delete page");
+  }
+};
 
   const currentPage = pages.find((p) => p.pageKey === selectedPage);
 
@@ -211,7 +215,7 @@ useEffect(() => {
                     </div>
                     <button
                       onClick={(e) => handleDeletePage(p.pageKey, e)}
-                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 text-xs shrink-0 ml-2 transition-opacity"
+                      className=" text-gray-400 hover:text-red-500 text-xs shrink-0 ml-2 transition-opacity"
                       title="Delete page"
                     >
                       ✕
@@ -296,7 +300,7 @@ useEffect(() => {
 
                     <Field
                       label="Meta Description"
-                      hint={`${(formData.metaTitle || "").length}/60 characters recommended`}
+                     hint={`${(formData.metaDescription || "").length}/160 characters recommended`}
                     >
                       <textarea
                         name="metaDescription"
