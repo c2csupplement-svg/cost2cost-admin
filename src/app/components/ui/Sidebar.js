@@ -115,6 +115,11 @@ const navGroups = [
         label:"Review",
         href: "/admin/ecommerce/review",
         icon: SlidersHorizontal ,
+      },
+      {
+        label:"Offers",
+        href: "/admin/ecommerce/offers",
+        icon: SlidersHorizontal ,
       }
     ],
   },
